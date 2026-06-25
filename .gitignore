@@ -1,0 +1,14 @@
+# Build output
+app/build/
+build/
+.gradle/
+
+# Local config
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Credentials - never commit
+.env
