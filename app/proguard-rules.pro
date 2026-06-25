@@ -1,0 +1,2 @@
+-keep class com.dehumidifier.data.** { *; }
+-keepclassmembers class com.dehumidifier.data.** { *; }

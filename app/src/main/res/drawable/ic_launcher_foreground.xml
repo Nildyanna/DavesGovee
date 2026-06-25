@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Water drop -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,18 C54,18 26,52 26,67 C26,82.46 38.54,95 54,95 C69.46,95 82,82.46 82,67 C82,52 54,18 54,18 Z" />
+    <!-- Humidity % symbol -->
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M44,58 C44,55.24 46.24,53 49,53 C51.76,53 54,55.24 54,58 C54,60.76 51.76,63 49,63 C46.24,63 44,60.76 44,58 Z" />
+    <path
+        android:fillColor="#1565C0"
+        android:strokeColor="#1565C0"
+        android:strokeWidth="2.5"
+        android:pathData="M62,53 L46,77" />
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M54,72 C54,69.24 56.24,67 59,67 C61.76,67 64,69.24 64,72 C64,74.76 61.76,77 59,77 C56.24,77 54,74.76 54,72 Z" />
+</vector>
