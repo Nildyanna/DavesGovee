@@ -22,11 +22,11 @@ data class LoginResponse(
 )
 
 data class LoginData(
-    val token: String,
-    @Json(name = "accountId") val accountId: String,
-    val client: String,
-    val email: String,
-    val nickname: String,
+    val token: String?,
+    @Json(name = "accountId") val accountId: String? = null,
+    val client: String? = null,
+    val email: String? = null,
+    val nickname: String? = null,
 )
 
 // ── Devices ───────────────────────────────────────────────────────────────────

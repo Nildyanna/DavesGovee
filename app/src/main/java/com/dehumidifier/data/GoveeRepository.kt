@@ -45,7 +45,11 @@ class GoveeRepository {
             userAgent = "okhttp/3.12.0",
             request = LoginRequest(email = email, password = password),
         )
-        response.data?.token ?: error("Login failed: ${response.message}")
+        val token = response.data?.token
+        if (token.isNullOrBlank()) {
+            error("Govee error (status=${response.status}): ${response.message}")
+        }
+        token
     }
 
     suspend fun listDevices(token: String): Result<List<GoveeDevice>> = runCatching {
