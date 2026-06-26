@@ -12,8 +12,10 @@ android {
         applicationId = "com.dehumidifier"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = (System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: 3)
+        versionName = "1.${System.getenv("BUILD_NUMBER") ?: "dev"}"
+        buildConfigField("String", "GITHUB_TOKEN", "\"${System.getenv("GITHUB_READ_TOKEN") ?: project.findProperty("github.token") ?: ""}\"")
+        buildConfigField("String", "GITHUB_REPO", "\"Nildyanna/DavesGovee\"")
     }
 
     buildTypes {
@@ -31,6 +33,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

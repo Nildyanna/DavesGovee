@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
                             onDispatch = vm::dispatch,
                             onLogout = vm::logout,
                             onCheckConnection = vm::checkConnection,
+                            onDownloadUpdate = { vm.downloadUpdate(this@MainActivity) },
                         )
                     }
                 }

@@ -46,6 +46,7 @@ fun MainScreen(
     onDispatch: () -> Unit,
     onLogout: () -> Unit,
     onCheckConnection: () -> Unit,
+    onDownloadUpdate: () -> Unit,
 ) {
     var latText by remember { mutableStateOf("") }
     var lonText by remember { mutableStateOf("") }
@@ -66,6 +67,16 @@ fun MainScreen(
 
         Spacer(Modifier.height(8.dp))
         ConnectionStatusRow(state.connectionStatus, onCheckConnection)
+
+        state.updateAvailable?.let { release ->
+            Spacer(Modifier.height(8.dp))
+            UpdateBanner(
+                tagName = release.tagName,
+                isDownloading = state.isDownloadingUpdate,
+                progress = state.updateProgress,
+                onDownload = onDownloadUpdate,
+            )
+        }
 
         Spacer(Modifier.height(16.dp))
         HorizontalDivider()
@@ -175,6 +186,37 @@ fun MainScreen(
         state.lastStatus?.let {
             Spacer(Modifier.height(8.dp))
             Text(it, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun UpdateBanner(
+    tagName: String,
+    isDownloading: Boolean,
+    progress: Int,
+    onDownload: () -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Update available ($tagName)", style = MaterialTheme.typography.bodyMedium)
+                if (isDownloading) {
+                    Text("Downloading… $progress%", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            if (isDownloading) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            } else {
+                Button(onClick = onDownload) { Text("Update") }
+            }
         }
     }
 }

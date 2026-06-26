@@ -13,6 +13,8 @@ import com.dehumidifier.data.ConnectionStatus
 import com.dehumidifier.data.GoveeDevice
 import com.dehumidifier.data.GoveeRepository
 import com.dehumidifier.data.PreferencesRepository
+import com.dehumidifier.data.ReleaseInfo
+import com.dehumidifier.data.UpdateChecker
 import com.dehumidifier.worker.AutomationWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,6 +34,9 @@ data class UiState(
     val automationEnabled: Boolean = false,
     val lastStatus: String? = null,
     val connectionStatus: ConnectionStatus = ConnectionStatus.UNKNOWN,
+    val updateAvailable: ReleaseInfo? = null,
+    val isDownloadingUpdate: Boolean = false,
+    val updateProgress: Int = 0,
 )
 
 class MainViewModel(
@@ -53,6 +58,7 @@ class MainViewModel(
             }
         }
         checkConnection()
+        checkForUpdate()
     }
 
     fun checkConnection() {
@@ -152,6 +158,24 @@ class MainViewModel(
     }
 
     fun dismissError() = _state.update { it.copy(error = null) }
+
+    private fun checkForUpdate() {
+        viewModelScope.launch {
+            val release = UpdateChecker.checkForUpdate()
+            _state.update { it.copy(updateAvailable = release) }
+        }
+    }
+
+    fun downloadUpdate(context: Context) {
+        val info = _state.value.updateAvailable ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(isDownloadingUpdate = true, updateProgress = 0) }
+            UpdateChecker.downloadAndInstall(context, info) { progress ->
+                _state.update { it.copy(updateProgress = progress) }
+            }
+            _state.update { it.copy(isDownloadingUpdate = false) }
+        }
+    }
 
     class Factory(private val context: Context) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
