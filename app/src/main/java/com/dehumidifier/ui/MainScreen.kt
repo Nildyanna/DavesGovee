@@ -216,7 +216,7 @@ fun MainScreen(
 }
 
 @Composable
-private fun UpdateBanner(
+internal fun UpdateBanner(
     tagName: String,
     isDownloading: Boolean,
     progress: Int,
