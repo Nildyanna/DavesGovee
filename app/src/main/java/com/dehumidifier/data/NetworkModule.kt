@@ -20,7 +20,7 @@ object NetworkModule {
         .build()
 
     val goveeApi: GoveeApiService = Retrofit.Builder()
-        .baseUrl("https://app2.govee.com/")
+        .baseUrl("https://developer-api.govee.com/")
         .client(okHttp)
         .addConverterFactory(MoshiConverterFactory.create(moshi))
         .build()

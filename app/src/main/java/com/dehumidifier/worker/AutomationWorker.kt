@@ -16,7 +16,7 @@ class AutomationWorker(
     override suspend fun doWork(): Result {
         val prefs = PreferencesRepository(applicationContext)
 
-        val token = prefs.token.first() ?: return Result.failure()
+        val apiKey = prefs.apiKey.first() ?: return Result.failure()
         val deviceId = prefs.deviceId.first() ?: return Result.failure()
         val model = prefs.deviceModel.first() ?: return Result.failure()
         val sensorId = prefs.sensorDeviceId.first() ?: return Result.failure()
@@ -26,10 +26,10 @@ class AutomationWorker(
 
         return try {
             val govee = GoveeRepository()
-            val currentVpd = govee.getVpd(token, sensorId, sensorModel).getOrThrow()
+            val currentVpd = govee.getVpd(apiKey, sensorId, sensorModel).getOrThrow()
             val speed = vpdToFanSpeed(currentVpd, targetVpd, vpdBand)
 
-            govee.setFanSpeed(token, deviceId, model, speed).getOrThrow()
+            govee.setFanSpeed(apiKey, deviceId, model, speed).getOrThrow()
             Result.success()
         } catch (e: Exception) {
             Result.retry()

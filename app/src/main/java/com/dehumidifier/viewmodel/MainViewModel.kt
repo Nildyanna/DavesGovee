@@ -37,6 +37,7 @@ data class UiState(
     val lastStatus: String? = null,
     val connectionStatus: ConnectionStatus = ConnectionStatus.UNKNOWN,
     val updateAvailable: ReleaseInfo? = null,
+    val isCheckingUpdate: Boolean = false,
     val isDownloadingUpdate: Boolean = false,
     val updateProgress: Int = 0,
     val targetVpd: Double = 0.8,
@@ -52,13 +53,13 @@ class MainViewModel(
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state
 
-    val savedToken = prefs.token.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val savedApiKey = prefs.apiKey.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val savedDeviceId = prefs.deviceId.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     init {
         viewModelScope.launch {
-            prefs.token.collect { token ->
-                _state.update { it.copy(isLoggedIn = token != null) }
+            prefs.apiKey.collect { key ->
+                _state.update { it.copy(isLoggedIn = key != null) }
             }
         }
         viewModelScope.launch {
@@ -88,25 +89,24 @@ class MainViewModel(
         }
     }
 
-    fun login(email: String, password: String) {
+    fun login(apiKey: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            val clientId = prefs.clientId.first()
-            govee.login(email, password, clientId)
-                .onSuccess { token ->
-                    prefs.saveAuth(token)
-                    loadDevices(token)
+            govee.listDevices(apiKey)
+                .onSuccess { devices ->
+                    prefs.saveApiKey(apiKey)
+                    _state.update { it.copy(isLoading = false, devices = devices) }
                 }
                 .onFailure { e ->
-                    _state.update { it.copy(isLoading = false, error = e.message) }
+                    _state.update { it.copy(isLoading = false, error = "Invalid API key: ${e.message}") }
                 }
         }
     }
 
-    fun loadDevices(token: String) {
+    fun loadDevices(apiKey: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            govee.listDevices(token)
+            govee.listDevices(apiKey)
                 .onSuccess { devices ->
                     _state.update { it.copy(isLoading = false, devices = devices) }
                 }
@@ -130,10 +130,6 @@ class MainViewModel(
         }
     }
 
-    fun saveLocation(lat: Double, lon: Double) {
-        viewModelScope.launch { prefs.saveLocation(lat, lon) }
-    }
-
     fun setAutomation(enabled: Boolean) {
         val wm = WorkManager.getInstance(context)
         if (enabled) {
@@ -153,13 +149,13 @@ class MainViewModel(
     fun dispatch() {
         viewModelScope.launch {
             _state.update { it.copy(isDispatching = true, error = null, lastStatus = null) }
-            val token = savedToken.value
+            val apiKey = savedApiKey.value
             val deviceId = savedDeviceId.value
-            if (token == null || deviceId == null) {
+            if (apiKey == null || deviceId == null) {
                 _state.update { it.copy(isDispatching = false, error = "Device not configured.") }
                 return@launch
             }
-            val request = OneTimeWorkRequestBuilder<com.dehumidifier.worker.AutomationWorker>().build()
+            val request = OneTimeWorkRequestBuilder<AutomationWorker>().build()
             val wm = WorkManager.getInstance(context)
             wm.enqueue(request)
             wm.getWorkInfoByIdFlow(request.id).collect { info ->
@@ -167,7 +163,7 @@ class MainViewModel(
                     val status = if (info.state == WorkInfo.State.SUCCEEDED)
                         "Done — fan speed updated."
                     else
-                        "Run failed. Check credentials and location."
+                        "Run failed. Check API key and device selection."
                     _state.update { it.copy(isDispatching = false, lastStatus = status) }
                 }
             }
@@ -184,10 +180,11 @@ class MainViewModel(
 
     fun dismissError() = _state.update { it.copy(error = null) }
 
-    private fun checkForUpdate() {
+    fun checkForUpdate() {
         viewModelScope.launch {
+            _state.update { it.copy(isCheckingUpdate = true) }
             val release = UpdateChecker.checkForUpdate()
-            _state.update { it.copy(updateAvailable = release) }
+            _state.update { it.copy(isCheckingUpdate = false, updateAvailable = release) }
         }
     }
 

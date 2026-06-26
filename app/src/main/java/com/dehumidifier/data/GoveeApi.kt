@@ -4,36 +4,13 @@ import com.squareup.moshi.Json
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
-import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Query
-
-// ── Auth ──────────────────────────────────────────────────────────────────────
-
-data class LoginRequest(
-    val email: String,
-    val password: String,
-    val client: String = "15ad88905d96c956",
-)
-
-data class LoginResponse(
-    val status: Int,
-    val message: String,
-    val data: LoginData?,
-)
-
-data class LoginData(
-    val token: String?,
-    @Json(name = "accountId") val accountId: String? = null,
-    val client: String? = null,
-    val email: String? = null,
-    val nickname: String? = null,
-)
 
 // ── Devices ───────────────────────────────────────────────────────────────────
 
 data class DeviceListResponse(
-    val status: Int,
+    @Json(name = "code") val status: Int,
     val message: String,
     val data: DeviceListData?,
 )
@@ -51,7 +28,7 @@ data class GoveeDevice(
 // ── Device state (sensors) ────────────────────────────────────────────────────
 
 data class DeviceStateResponse(
-    val status: Int,
+    @Json(name = "code") val status: Int,
     val message: String,
     val data: DeviceStateData?,
 )
@@ -88,7 +65,7 @@ data class DeviceCmd(
 )
 
 data class ControlResponse(
-    val status: Int,
+    @Json(name = "code") val status: Int,
     val message: String,
 )
 
@@ -96,28 +73,19 @@ data class ControlResponse(
 
 interface GoveeApiService {
 
-    @POST("account/rest/account/v1/login")
-    suspend fun login(
-        @Header("appVersion") appVersion: String,
-        @Header("clientType") clientType: String,
-        @Header("iotVersion") iotVersion: String,
-        @Header("timestamp") timestamp: String,
-        @Body request: LoginRequest,
-    ): LoginResponse
+    @GET("v1/devices")
+    suspend fun getDevices(@Header("Govee-API-Key") apiKey: String): DeviceListResponse
 
-    @GET("device/rest/devices/v1/list")
-    suspend fun getDevices(@Header("Authorization") token: String): DeviceListResponse
-
-    @GET("device/rest/devices/v1/state")
+    @GET("v1/devices/state")
     suspend fun getDeviceState(
-        @Header("Authorization") token: String,
+        @Header("Govee-API-Key") apiKey: String,
         @Query("device") deviceId: String,
         @Query("model") model: String,
     ): DeviceStateResponse
 
-    @PUT("device/rest/devices/v1/control")
+    @PUT("v1/devices/control")
     suspend fun control(
-        @Header("Authorization") token: String,
+        @Header("Govee-API-Key") apiKey: String,
         @Body request: ControlRequest,
     ): ControlResponse
 }
