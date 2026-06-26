@@ -47,7 +47,10 @@ class GoveeRepository {
         )
         val token = response.data?.token
         if (token.isNullOrBlank()) {
-            error("Govee error (status=${response.status}): ${response.message}")
+            if (response.status == 454) {
+                error("Govee sent a verification email to your account. Check your inbox, click the link, then try logging in again.")
+            }
+            error("Login failed (${response.status}): ${response.message}")
         }
         token
     }
