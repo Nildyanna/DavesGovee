@@ -48,6 +48,8 @@ class MainActivity : ComponentActivity() {
                             state = state,
                             onSelectDevice = vm::selectDevice,
                             onSelectSensor = vm::selectSensor,
+                            onSaveManualDevice = vm::saveManualDevice,
+                            onSaveManualSensor = vm::saveManualSensor,
                             onSaveVpdSettings = vm::saveVpdSettings,
                             onToggleAutomation = vm::setAutomation,
                             onDispatch = vm::dispatch,

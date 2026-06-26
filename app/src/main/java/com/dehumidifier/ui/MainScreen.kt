@@ -42,6 +42,8 @@ fun MainScreen(
     state: UiState,
     onSelectDevice: (GoveeDevice) -> Unit,
     onSelectSensor: (GoveeDevice) -> Unit,
+    onSaveManualDevice: (deviceId: String, model: String) -> Unit,
+    onSaveManualSensor: (deviceId: String, model: String) -> Unit,
     onSaveVpdSettings: (targetVpd: Double, band: Double) -> Unit,
     onToggleAutomation: (Boolean) -> Unit,
     onDispatch: () -> Unit,
@@ -86,9 +88,7 @@ fun MainScreen(
         Text("Dehumidifier", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
 
-        if (state.devices.isEmpty()) {
-            Text("No devices found.", style = MaterialTheme.typography.bodyMedium)
-        } else {
+        if (state.devices.isNotEmpty()) {
             LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
                 items(state.devices) { device ->
                     DeviceCard(
@@ -99,6 +99,13 @@ fun MainScreen(
                     Spacer(Modifier.height(8.dp))
                 }
             }
+        } else {
+            ManualDeviceEntry(
+                label = "Dehumidifier",
+                savedId = state.selectedDeviceId,
+                savedModel = state.selectedDeviceModel,
+                onSave = onSaveManualDevice,
+            )
         }
 
         Spacer(Modifier.height(16.dp))
@@ -108,9 +115,7 @@ fun MainScreen(
         Text("Hygrometer (sensor)", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
 
-        if (state.devices.isEmpty()) {
-            Text("No devices found.", style = MaterialTheme.typography.bodyMedium)
-        } else {
+        if (state.devices.isNotEmpty()) {
             LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
                 items(state.devices) { device ->
                     DeviceCard(
@@ -121,6 +126,13 @@ fun MainScreen(
                     Spacer(Modifier.height(8.dp))
                 }
             }
+        } else {
+            ManualDeviceEntry(
+                label = "Hygrometer",
+                savedId = state.selectedSensorId,
+                savedModel = state.selectedSensorModel,
+                onSave = onSaveManualSensor,
+            )
         }
 
         Spacer(Modifier.height(16.dp))
@@ -265,6 +277,45 @@ private fun ConnectionStatusRow(status: ConnectionStatus, onRetry: () -> Unit) {
         if (status != ConnectionStatus.CHECKING) {
             TextButton(onClick = onRetry) { Text("Check", style = MaterialTheme.typography.bodySmall) }
         }
+    }
+}
+
+@Composable
+private fun ManualDeviceEntry(
+    label: String,
+    savedId: String?,
+    savedModel: String?,
+    onSave: (deviceId: String, model: String) -> Unit,
+) {
+    var deviceId by remember(savedId) { mutableStateOf(savedId ?: "") }
+    var model by remember(savedModel) { mutableStateOf(savedModel ?: "") }
+    val saved = deviceId == savedId && model == savedModel && savedId != null
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (saved) {
+            Text("$label set: $savedId (${savedModel})", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        }
+        OutlinedTextField(
+            value = deviceId,
+            onValueChange = { deviceId = it },
+            label = { Text("$label Device ID") },
+            placeholder = { Text("e.g. 34:20:03:15:82:ae") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = model,
+            onValueChange = { model = it },
+            label = { Text("$label Model") },
+            placeholder = { Text("e.g. H7151") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Button(
+            onClick = { onSave(deviceId.trim(), model.trim()) },
+            enabled = deviceId.isNotBlank() && model.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Save $label") }
     }
 }
 

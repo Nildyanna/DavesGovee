@@ -33,7 +33,9 @@ data class UiState(
     val updateCheckResult: String? = null,
     val devices: List<GoveeDevice> = emptyList(),
     val selectedDeviceId: String? = null,
+    val selectedDeviceModel: String? = null,
     val selectedSensorId: String? = null,
+    val selectedSensorModel: String? = null,
     val automationEnabled: Boolean = false,
     val lastStatus: String? = null,
     val connectionStatus: ConnectionStatus = ConnectionStatus.UNKNOWN,
@@ -70,7 +72,16 @@ class MainViewModel(
             prefs.vpdBand.collect { b -> _state.update { it.copy(vpdBand = b) } }
         }
         viewModelScope.launch {
+            prefs.deviceId.collect { id -> _state.update { it.copy(selectedDeviceId = id) } }
+        }
+        viewModelScope.launch {
+            prefs.deviceModel.collect { m -> _state.update { it.copy(selectedDeviceModel = m) } }
+        }
+        viewModelScope.launch {
             prefs.sensorDeviceId.collect { id -> _state.update { it.copy(selectedSensorId = id) } }
+        }
+        viewModelScope.launch {
+            prefs.sensorModel.collect { m -> _state.update { it.copy(selectedSensorModel = m) } }
         }
         checkConnection()
         checkForUpdate()
@@ -120,14 +131,28 @@ class MainViewModel(
     fun selectDevice(device: GoveeDevice) {
         viewModelScope.launch {
             prefs.saveDevice(device.device, device.model)
-            _state.update { it.copy(selectedDeviceId = device.device) }
+            _state.update { it.copy(selectedDeviceId = device.device, selectedDeviceModel = device.model) }
         }
     }
 
     fun selectSensor(device: GoveeDevice) {
         viewModelScope.launch {
             prefs.saveSensor(device.device, device.model)
-            _state.update { it.copy(selectedSensorId = device.device) }
+            _state.update { it.copy(selectedSensorId = device.device, selectedSensorModel = device.model) }
+        }
+    }
+
+    fun saveManualDevice(deviceId: String, model: String) {
+        viewModelScope.launch {
+            prefs.saveDevice(deviceId, model)
+            _state.update { it.copy(selectedDeviceId = deviceId, selectedDeviceModel = model) }
+        }
+    }
+
+    fun saveManualSensor(deviceId: String, model: String) {
+        viewModelScope.launch {
+            prefs.saveSensor(deviceId, model)
+            _state.update { it.copy(selectedSensorId = deviceId, selectedSensorModel = model) }
         }
     }
 
