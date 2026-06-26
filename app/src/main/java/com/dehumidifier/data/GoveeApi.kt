@@ -21,8 +21,9 @@ data class GoveeDevice(
     val device: String,
     val model: String,
     val deviceName: String,
-    val controllable: Boolean,
-    val retrievable: Boolean,
+    val controllable: Boolean? = null,
+    val retrievable: Boolean? = null,
+    val supportCmds: List<String>? = null,
 )
 
 // ── Device state (sensors) ────────────────────────────────────────────────────

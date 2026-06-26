@@ -57,7 +57,10 @@ class GoveeRepository {
 
     suspend fun listDevices(apiKey: String): Result<List<GoveeDevice>> = runCatching {
         val response = api.getDevices(apiKey)
-        response.data?.devices ?: error("No devices (${response.status}): ${response.message}")
+        val devices = response.data?.devices
+        if (devices == null) error("No devices (${response.status}): ${response.message}")
+        if (devices.isEmpty()) error("API returned 0 devices. Check that devices are added to your Govee account.")
+        devices
     }
 
     suspend fun getVpd(apiKey: String, deviceId: String, model: String): Result<Double> =

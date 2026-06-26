@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
                         }
                         MainScreen(
                             state = state,
+                            onRefreshDevices = { apiKey?.let { vm.loadDevices(it) } },
                             onSelectDevice = vm::selectDevice,
                             onSelectSensor = vm::selectSensor,
                             onSaveManualDevice = vm::saveManualDevice,

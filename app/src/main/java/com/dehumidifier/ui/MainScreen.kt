@@ -40,6 +40,7 @@ import com.dehumidifier.viewmodel.UiState
 @Composable
 fun MainScreen(
     state: UiState,
+    onRefreshDevices: () -> Unit,
     onSelectDevice: (GoveeDevice) -> Unit,
     onSelectSensor: (GoveeDevice) -> Unit,
     onSaveManualDevice: (deviceId: String, model: String) -> Unit,
@@ -100,6 +101,16 @@ fun MainScreen(
                 }
             }
         } else {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (state.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Text("Loading devices…", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    state.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                    TextButton(onClick = onRefreshDevices) { Text("Refresh") }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
             ManualDeviceEntry(
                 label = "Dehumidifier",
                 savedId = state.selectedDeviceId,
