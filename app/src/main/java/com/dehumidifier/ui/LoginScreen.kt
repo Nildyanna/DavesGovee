@@ -23,12 +23,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.dehumidifier.data.ReleaseInfo
 
 @Composable
 fun LoginScreen(
     isLoading: Boolean,
     error: String?,
     onLogin: (email: String, password: String) -> Unit,
+    updateAvailable: ReleaseInfo? = null,
+    isDownloadingUpdate: Boolean = false,
+    updateProgress: Int = 0,
+    onDownloadUpdate: () -> Unit = {},
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -40,6 +45,16 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        updateAvailable?.let { release ->
+            UpdateBanner(
+                tagName = release.tagName,
+                isDownloading = isDownloadingUpdate,
+                progress = updateProgress,
+                onDownload = onDownloadUpdate,
+            )
+            Spacer(Modifier.height(24.dp))
+        }
+
         Text("Dehumidifier Automation", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(8.dp))
         Text("Sign in with your Govee account", style = MaterialTheme.typography.bodyMedium)

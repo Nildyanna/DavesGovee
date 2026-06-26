@@ -32,6 +32,10 @@ class MainActivity : ComponentActivity() {
                             isLoading = state.isLoading,
                             error = state.error,
                             onLogin = vm::login,
+                            updateAvailable = state.updateAvailable,
+                            isDownloadingUpdate = state.isDownloadingUpdate,
+                            updateProgress = state.updateProgress,
+                            onDownloadUpdate = { vm.downloadUpdate(this@MainActivity) },
                         )
                     } else {
                         if (state.devices.isEmpty() && token != null) {
