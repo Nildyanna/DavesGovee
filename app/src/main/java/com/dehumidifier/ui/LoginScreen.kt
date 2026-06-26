@@ -35,6 +35,7 @@ fun LoginScreen(
     isCheckingUpdate: Boolean = false,
     isDownloadingUpdate: Boolean = false,
     updateProgress: Int = 0,
+    updateCheckResult: String? = null,
     onCheckUpdate: () -> Unit = {},
     onDownloadUpdate: () -> Unit = {},
 ) {
@@ -63,7 +64,11 @@ fun LoginScreen(
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                     Text("Checking for updates…", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 } else {
-                    Text("App is up to date", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text(
+                        updateCheckResult ?: "Check for updates",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray,
+                    )
                     OutlinedButton(onClick = onCheckUpdate) { Text("Check", style = MaterialTheme.typography.bodySmall) }
                 }
             }

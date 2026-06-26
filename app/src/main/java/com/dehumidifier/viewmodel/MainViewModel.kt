@@ -30,6 +30,7 @@ data class UiState(
     val isLoading: Boolean = false,
     val isDispatching: Boolean = false,
     val error: String? = null,
+    val updateCheckResult: String? = null,
     val devices: List<GoveeDevice> = emptyList(),
     val selectedDeviceId: String? = null,
     val selectedSensorId: String? = null,
@@ -182,9 +183,15 @@ class MainViewModel(
 
     fun checkForUpdate() {
         viewModelScope.launch {
-            _state.update { it.copy(isCheckingUpdate = true) }
+            _state.update { it.copy(isCheckingUpdate = true, updateCheckResult = null) }
             val release = UpdateChecker.checkForUpdate()
-            _state.update { it.copy(isCheckingUpdate = false, updateAvailable = release) }
+            _state.update {
+                it.copy(
+                    isCheckingUpdate = false,
+                    updateAvailable = release,
+                    updateCheckResult = if (release == null) "Up to date (build ${com.dehumidifier.BuildConfig.VERSION_CODE})" else null,
+                )
+            }
         }
     }
 

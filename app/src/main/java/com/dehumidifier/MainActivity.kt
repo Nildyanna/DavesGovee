@@ -36,6 +36,7 @@ class MainActivity : ComponentActivity() {
                             isCheckingUpdate = state.isCheckingUpdate,
                             isDownloadingUpdate = state.isDownloadingUpdate,
                             updateProgress = state.updateProgress,
+                            updateCheckResult = state.updateCheckResult,
                             onCheckUpdate = vm::checkForUpdate,
                             onDownloadUpdate = { vm.downloadUpdate(this@MainActivity) },
                         )
