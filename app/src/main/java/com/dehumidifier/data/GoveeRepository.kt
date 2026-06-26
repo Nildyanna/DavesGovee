@@ -82,6 +82,17 @@ class GoveeRepository {
         response.data?.devices ?: error("No devices: ${response.message}")
     }
 
+    data class SensorReading(val tempCelsius: Double, val humidity: Int)
+
+    suspend fun getSensorReading(token: String, deviceId: String, model: String): Result<SensorReading> =
+        runCatching {
+            val response = api.getDeviceState("Bearer $token", deviceId, model)
+            val props = response.data?.properties ?: error("No state data: ${response.message}")
+            val temp = props.temperatureCelsius() ?: error("No temperature in sensor response")
+            val rh = props.humidity() ?: error("No humidity in sensor response")
+            SensorReading(temp, rh)
+        }
+
     suspend fun setFanSpeed(
         token: String,
         deviceId: String,

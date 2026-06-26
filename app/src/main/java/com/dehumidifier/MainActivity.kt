@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
                         MainScreen(
                             state = state,
                             onSelectDevice = vm::selectDevice,
-                            onSaveLocation = vm::saveLocation,
+                            onSelectSensor = vm::selectSensor,
                             onSaveVpdSettings = vm::saveVpdSettings,
                             onToggleAutomation = vm::setAutomation,
                             onDispatch = vm::dispatch,

@@ -41,7 +41,7 @@ import com.dehumidifier.viewmodel.UiState
 fun MainScreen(
     state: UiState,
     onSelectDevice: (GoveeDevice) -> Unit,
-    onSaveLocation: (lat: Double, lon: Double) -> Unit,
+    onSelectSensor: (GoveeDevice) -> Unit,
     onSaveVpdSettings: (targetVpd: Double, band: Double) -> Unit,
     onToggleAutomation: (Boolean) -> Unit,
     onDispatch: () -> Unit,
@@ -49,8 +49,6 @@ fun MainScreen(
     onCheckConnection: () -> Unit,
     onDownloadUpdate: () -> Unit,
 ) {
-    var latText by remember { mutableStateOf("") }
-    var lonText by remember { mutableStateOf("") }
     var targetVpdText by remember(state.targetVpd) { mutableStateOf("%.2f".format(state.targetVpd)) }
     var vpdBandText by remember(state.vpdBand) { mutableStateOf("%.2f".format(state.vpdBand)) }
 
@@ -85,7 +83,7 @@ fun MainScreen(
         HorizontalDivider()
         Spacer(Modifier.height(16.dp))
 
-        Text("Select Device", style = MaterialTheme.typography.titleMedium)
+        Text("Dehumidifier", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
 
         if (state.devices.isEmpty()) {
@@ -107,41 +105,23 @@ fun MainScreen(
         HorizontalDivider()
         Spacer(Modifier.height(16.dp))
 
-        Text("Weather Location", style = MaterialTheme.typography.titleMedium)
+        Text("Hygrometer (sensor)", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
-        Text(
-            "Enter the latitude/longitude near your dehumidifier for accurate local humidity.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = latText,
-                onValueChange = { latText = it },
-                label = { Text("Latitude") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.weight(1f),
-            )
-            OutlinedTextField(
-                value = lonText,
-                onValueChange = { lonText = it },
-                label = { Text("Longitude") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.weight(1f),
-            )
+
+        if (state.devices.isEmpty()) {
+            Text("No devices found.", style = MaterialTheme.typography.bodyMedium)
+        } else {
+            LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+                items(state.devices) { device ->
+                    DeviceCard(
+                        device = device,
+                        selected = device.device == state.selectedSensorId,
+                        onClick = { onSelectSensor(device) },
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
         }
-        Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = {
-                val lat = latText.toDoubleOrNull()
-                val lon = lonText.toDoubleOrNull()
-                if (lat != null && lon != null) onSaveLocation(lat, lon)
-            },
-            enabled = latText.toDoubleOrNull() != null && lonText.toDoubleOrNull() != null,
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Save Location") }
 
         Spacer(Modifier.height(16.dp))
         HorizontalDivider()
@@ -197,14 +177,14 @@ fun MainScreen(
             Column {
                 Text("Auto-adjust every hour", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Computes outdoor VPD and sets fan speed automatically.",
+                    "Reads hygrometer VPD every hour and sets fan speed automatically.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
             Switch(
                 checked = state.automationEnabled,
                 onCheckedChange = onToggleAutomation,
-                enabled = state.selectedDeviceId != null,
+                enabled = state.selectedDeviceId != null && state.selectedSensorId != null,
             )
         }
 

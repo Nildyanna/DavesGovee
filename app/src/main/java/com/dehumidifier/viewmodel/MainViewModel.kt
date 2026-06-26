@@ -31,6 +31,7 @@ data class UiState(
     val error: String? = null,
     val devices: List<GoveeDevice> = emptyList(),
     val selectedDeviceId: String? = null,
+    val selectedSensorId: String? = null,
     val automationEnabled: Boolean = false,
     val lastStatus: String? = null,
     val connectionStatus: ConnectionStatus = ConnectionStatus.UNKNOWN,
@@ -64,6 +65,9 @@ class MainViewModel(
         }
         viewModelScope.launch {
             prefs.vpdBand.collect { b -> _state.update { it.copy(vpdBand = b) } }
+        }
+        viewModelScope.launch {
+            prefs.sensorDeviceId.collect { id -> _state.update { it.copy(selectedSensorId = id) } }
         }
         checkConnection()
         checkForUpdate()
@@ -114,6 +118,13 @@ class MainViewModel(
         viewModelScope.launch {
             prefs.saveDevice(device.device, device.model)
             _state.update { it.copy(selectedDeviceId = device.device) }
+        }
+    }
+
+    fun selectSensor(device: GoveeDevice) {
+        viewModelScope.launch {
+            prefs.saveSensor(device.device, device.model)
+            _state.update { it.copy(selectedSensorId = device.device) }
         }
     }
 

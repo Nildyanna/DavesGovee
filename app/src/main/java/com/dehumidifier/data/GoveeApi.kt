@@ -6,6 +6,7 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Query
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,30 @@ data class GoveeDevice(
     val retrievable: Boolean,
 )
 
+// ── Device state (sensors) ────────────────────────────────────────────────────
+
+data class DeviceStateResponse(
+    val status: Int,
+    val message: String,
+    val data: DeviceStateData?,
+)
+
+data class DeviceStateData(
+    val device: String,
+    val model: String,
+    val properties: List<DeviceProperty>,
+)
+
+// Govee sends one property per list entry, e.g. [{"humidity":65},{"temperature":23.5}]
+data class DeviceProperty(
+    val online: Boolean? = null,
+    val humidity: Int? = null,
+    val temperature: Double? = null,
+)
+
+fun List<DeviceProperty>.humidity(): Int? = firstNotNullOfOrNull { it.humidity }
+fun List<DeviceProperty>.temperatureCelsius(): Double? = firstNotNullOfOrNull { it.temperature }
+
 // ── Control ───────────────────────────────────────────────────────────────────
 
 data class ControlRequest(
@@ -81,6 +106,13 @@ interface GoveeApiService {
 
     @GET("device/rest/devices/v1/list")
     suspend fun getDevices(@Header("Authorization") token: String): DeviceListResponse
+
+    @GET("device/rest/devices/v1/state")
+    suspend fun getDeviceState(
+        @Header("Authorization") token: String,
+        @Query("device") deviceId: String,
+        @Query("model") model: String,
+    ): DeviceStateResponse
 
     @PUT("device/rest/devices/v1/control")
     suspend fun control(
