@@ -16,13 +16,12 @@ object UpdateChecker {
     suspend fun checkForUpdate(): ReleaseInfo? = withContext(Dispatchers.IO) {
         try {
             val token = BuildConfig.GITHUB_TOKEN
-            if (token.isBlank()) return@withContext null
 
-            val req = Request.Builder()
+            val reqBuilder = Request.Builder()
                 .url("https://api.github.com/repos/${BuildConfig.GITHUB_REPO}/releases/latest")
-                .header("Authorization", "Bearer $token")
                 .header("Accept", "application/vnd.github+json")
-                .build()
+            if (token.isNotBlank()) reqBuilder.header("Authorization", "Bearer $token")
+            val req = reqBuilder.build()
 
             val body = NetworkModule.okHttp.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) return@withContext null
@@ -47,11 +46,11 @@ object UpdateChecker {
     suspend fun downloadAndInstall(context: Context, info: ReleaseInfo, onProgress: (Int) -> Unit) =
         withContext(Dispatchers.IO) {
             val token = BuildConfig.GITHUB_TOKEN
-            val req = Request.Builder()
+            val reqBuilder = Request.Builder()
                 .url(info.apkUrl)
-                .header("Authorization", "Bearer $token")
                 .header("Accept", "application/octet-stream")
-                .build()
+            if (token.isNotBlank()) reqBuilder.header("Authorization", "Bearer $token")
+            val req = reqBuilder.build()
 
             NetworkModule.okHttp.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) return@withContext
