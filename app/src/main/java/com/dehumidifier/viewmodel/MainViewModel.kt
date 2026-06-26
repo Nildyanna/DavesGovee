@@ -37,6 +37,8 @@ data class UiState(
     val updateAvailable: ReleaseInfo? = null,
     val isDownloadingUpdate: Boolean = false,
     val updateProgress: Int = 0,
+    val targetVpd: Double = 0.8,
+    val vpdBand: Double = 0.1,
 )
 
 class MainViewModel(
@@ -57,8 +59,18 @@ class MainViewModel(
                 _state.update { it.copy(isLoggedIn = token != null) }
             }
         }
+        viewModelScope.launch {
+            prefs.targetVpd.collect { v -> _state.update { it.copy(targetVpd = v) } }
+        }
+        viewModelScope.launch {
+            prefs.vpdBand.collect { b -> _state.update { it.copy(vpdBand = b) } }
+        }
         checkConnection()
         checkForUpdate()
+    }
+
+    fun saveVpdSettings(targetVpd: Double, band: Double) {
+        viewModelScope.launch { prefs.saveVpdSettings(targetVpd, band) }
     }
 
     fun checkConnection() {

@@ -18,6 +18,8 @@ class PreferencesRepository(private val context: Context) {
         private val KEY_DEVICE_MODEL = stringPreferencesKey("device_model")
         private val KEY_LATITUDE = doublePreferencesKey("latitude")
         private val KEY_LONGITUDE = doublePreferencesKey("longitude")
+        private val KEY_TARGET_VPD = doublePreferencesKey("target_vpd")
+        private val KEY_VPD_BAND = doublePreferencesKey("vpd_band")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { it[KEY_TOKEN] }
@@ -25,6 +27,9 @@ class PreferencesRepository(private val context: Context) {
     val deviceModel: Flow<String?> = context.dataStore.data.map { it[KEY_DEVICE_MODEL] }
     val latitude: Flow<Double?> = context.dataStore.data.map { it[KEY_LATITUDE] }
     val longitude: Flow<Double?> = context.dataStore.data.map { it[KEY_LONGITUDE] }
+    // Default target VPD 0.8 kPa, dead-band ±0.1 kPa
+    val targetVpd: Flow<Double> = context.dataStore.data.map { it[KEY_TARGET_VPD] ?: 0.8 }
+    val vpdBand: Flow<Double> = context.dataStore.data.map { it[KEY_VPD_BAND] ?: 0.1 }
 
     suspend fun saveAuth(token: String) {
         context.dataStore.edit { it[KEY_TOKEN] = token }
@@ -41,6 +46,13 @@ class PreferencesRepository(private val context: Context) {
         context.dataStore.edit {
             it[KEY_LATITUDE] = lat
             it[KEY_LONGITUDE] = lon
+        }
+    }
+
+    suspend fun saveVpdSettings(targetVpd: Double, band: Double) {
+        context.dataStore.edit {
+            it[KEY_TARGET_VPD] = targetVpd
+            it[KEY_VPD_BAND] = band
         }
     }
 

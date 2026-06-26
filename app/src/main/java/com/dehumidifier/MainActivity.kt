@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
                             state = state,
                             onSelectDevice = vm::selectDevice,
                             onSaveLocation = vm::saveLocation,
+                            onSaveVpdSettings = vm::saveVpdSettings,
                             onToggleAutomation = vm::setAutomation,
                             onDispatch = vm::dispatch,
                             onLogout = vm::logout,

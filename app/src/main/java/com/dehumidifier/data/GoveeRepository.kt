@@ -4,18 +4,40 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 
-// Maps outdoor relative humidity % → dehumidifier fan speed (Low / Medium / High)
-// Adjust thresholds to taste.
 enum class FanSpeed(val goveeValue: Int) {
     LOW(1),
     MEDIUM(2),
     HIGH(3),
 }
 
-fun humidityToFanSpeed(humidity: Int): FanSpeed = when {
-    humidity < 55 -> FanSpeed.LOW
-    humidity < 70 -> FanSpeed.MEDIUM
-    else -> FanSpeed.HIGH
+/**
+ * VPD = SVP * (1 - RH/100), where SVP = 0.6108 * exp(17.27*T / (T+237.3)) kPa
+ * Returns kPa.
+ */
+fun computeVpd(tempCelsius: Double, relativeHumidity: Int): Double {
+    val svp = 0.6108 * Math.exp(17.27 * tempCelsius / (tempCelsius + 237.3))
+    return svp * (1.0 - relativeHumidity / 100.0)
+}
+
+/**
+ * Maps current VPD to fan speed relative to the target VPD.
+ * [band] is a dead-band around the target — within ±band the fan stays Low.
+ * Above target+band the VPD is too high (air is too dry for the plants/space),
+ * but for a dehumidifier the concern is the opposite: current VPD below target
+ * means the air is too humid, so we run harder.
+ *
+ * Below target - band  → HIGH (very humid, run hard)
+ * Below target         → MEDIUM (somewhat humid)
+ * Within ±band         → LOW (close enough, don't cycle)
+ * Above target + band  → LOW (air already drier than target, rest)
+ */
+fun vpdToFanSpeed(currentVpd: Double, targetVpd: Double, band: Double): FanSpeed {
+    val diff = targetVpd - currentVpd  // positive = air is more humid than target
+    return when {
+        diff > band + 0.3 -> FanSpeed.HIGH
+        diff > band       -> FanSpeed.MEDIUM
+        else              -> FanSpeed.LOW
+    }
 }
 
 enum class ConnectionStatus { UNKNOWN, CHECKING, ONLINE, OFFLINE }

@@ -42,6 +42,7 @@ fun MainScreen(
     state: UiState,
     onSelectDevice: (GoveeDevice) -> Unit,
     onSaveLocation: (lat: Double, lon: Double) -> Unit,
+    onSaveVpdSettings: (targetVpd: Double, band: Double) -> Unit,
     onToggleAutomation: (Boolean) -> Unit,
     onDispatch: () -> Unit,
     onLogout: () -> Unit,
@@ -50,6 +51,8 @@ fun MainScreen(
 ) {
     var latText by remember { mutableStateOf("") }
     var lonText by remember { mutableStateOf("") }
+    var targetVpdText by remember(state.targetVpd) { mutableStateOf("%.2f".format(state.targetVpd)) }
+    var vpdBandText by remember(state.vpdBand) { mutableStateOf("%.2f".format(state.vpdBand)) }
 
     Column(
         modifier = Modifier
@@ -144,6 +147,48 @@ fun MainScreen(
         HorizontalDivider()
         Spacer(Modifier.height(16.dp))
 
+        Text("VPD Target", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Target vapor pressure deficit in kPa. Fan runs harder when VPD is below target. " +
+            "Dead-band prevents constant cycling — fan stays Low within ±band of target.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = targetVpdText,
+                onValueChange = { targetVpdText = it },
+                label = { Text("Target VPD (kPa)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedTextField(
+                value = vpdBandText,
+                onValueChange = { vpdBandText = it },
+                label = { Text("Dead-band (kPa)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Button(
+            onClick = {
+                val t = targetVpdText.toDoubleOrNull()
+                val b = vpdBandText.toDoubleOrNull()
+                if (t != null && b != null && t > 0 && b >= 0) onSaveVpdSettings(t, b)
+            },
+            enabled = targetVpdText.toDoubleOrNull()?.let { it > 0 } == true &&
+                      vpdBandText.toDoubleOrNull()?.let { it >= 0 } == true,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Save VPD Settings") }
+
+        Spacer(Modifier.height(16.dp))
+        HorizontalDivider()
+        Spacer(Modifier.height(16.dp))
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -152,7 +197,7 @@ fun MainScreen(
             Column {
                 Text("Auto-adjust every hour", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Checks outdoor humidity and sets fan speed automatically.",
+                    "Computes outdoor VPD and sets fan speed automatically.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
