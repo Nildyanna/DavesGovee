@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,8 +30,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.dehumidifier.data.ConnectionStatus
 import com.dehumidifier.data.GoveeDevice
 import com.dehumidifier.viewmodel.UiState
 
@@ -42,6 +45,7 @@ fun MainScreen(
     onToggleAutomation: (Boolean) -> Unit,
     onDispatch: () -> Unit,
     onLogout: () -> Unit,
+    onCheckConnection: () -> Unit,
 ) {
     var latText by remember { mutableStateOf("") }
     var lonText by remember { mutableStateOf("") }
@@ -59,6 +63,9 @@ fun MainScreen(
             Text("Dehumidifier Automation", style = MaterialTheme.typography.titleLarge)
             TextButton(onClick = onLogout) { Text("Logout") }
         }
+
+        Spacer(Modifier.height(8.dp))
+        ConnectionStatusRow(state.connectionStatus, onCheckConnection)
 
         Spacer(Modifier.height(16.dp))
         HorizontalDivider()
@@ -168,6 +175,28 @@ fun MainScreen(
         state.lastStatus?.let {
             Spacer(Modifier.height(8.dp))
             Text(it, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun ConnectionStatusRow(status: ConnectionStatus, onRetry: () -> Unit) {
+    val (label, color) = when (status) {
+        ConnectionStatus.UNKNOWN  -> "Not checked" to Color.Gray
+        ConnectionStatus.CHECKING -> "Checking…"   to Color.Gray
+        ConnectionStatus.ONLINE   -> "Govee: Online"  to Color(0xFF2E7D32)
+        ConnectionStatus.OFFLINE  -> "Govee: Offline" to Color(0xFFC62828)
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (status == ConnectionStatus.CHECKING) {
+            CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
+        }
+        Text(label, style = MaterialTheme.typography.bodySmall, color = color)
+        if (status != ConnectionStatus.CHECKING) {
+            TextButton(onClick = onRetry) { Text("Check", style = MaterialTheme.typography.bodySmall) }
         }
     }
 }

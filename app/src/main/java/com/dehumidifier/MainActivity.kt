@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
                             onToggleAutomation = vm::setAutomation,
                             onDispatch = vm::dispatch,
                             onLogout = vm::logout,
+                            onCheckConnection = vm::checkConnection,
                         )
                     }
                 }

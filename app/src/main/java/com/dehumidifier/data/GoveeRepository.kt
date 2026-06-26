@@ -1,5 +1,9 @@
 package com.dehumidifier.data
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.Request
+
 // Maps outdoor relative humidity % → dehumidifier fan speed (Low / Medium / High)
 // Adjust thresholds to taste.
 enum class FanSpeed(val goveeValue: Int) {
@@ -14,9 +18,23 @@ fun humidityToFanSpeed(humidity: Int): FanSpeed = when {
     else -> FanSpeed.HIGH
 }
 
+enum class ConnectionStatus { UNKNOWN, CHECKING, ONLINE, OFFLINE }
+
 class GoveeRepository {
 
     private val api = NetworkModule.goveeApi
+
+    suspend fun checkConnection(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = NetworkModule.okHttp
+                .newCall(Request.Builder().url("https://app2.govee.com/").head().build())
+                .execute()
+            response.close()
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     suspend fun login(email: String, password: String): Result<String> = runCatching {
         val response = api.login(LoginRequest(email = email, password = password))

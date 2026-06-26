@@ -13,7 +13,7 @@ object NetworkModule {
         .addLast(KotlinJsonAdapterFactory())
         .build()
 
-    private val okHttp = OkHttpClient.Builder()
+    val okHttp = OkHttpClient.Builder()
         .addInterceptor(HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         })

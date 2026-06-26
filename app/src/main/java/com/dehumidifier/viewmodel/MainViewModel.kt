@@ -9,6 +9,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.dehumidifier.data.ConnectionStatus
 import com.dehumidifier.data.GoveeDevice
 import com.dehumidifier.data.GoveeRepository
 import com.dehumidifier.data.PreferencesRepository
@@ -30,6 +31,7 @@ data class UiState(
     val selectedDeviceId: String? = null,
     val automationEnabled: Boolean = false,
     val lastStatus: String? = null,
+    val connectionStatus: ConnectionStatus = ConnectionStatus.UNKNOWN,
 )
 
 class MainViewModel(
@@ -48,6 +50,17 @@ class MainViewModel(
         viewModelScope.launch {
             prefs.token.collect { token ->
                 _state.update { it.copy(isLoggedIn = token != null) }
+            }
+        }
+        checkConnection()
+    }
+
+    fun checkConnection() {
+        viewModelScope.launch {
+            _state.update { it.copy(connectionStatus = ConnectionStatus.CHECKING) }
+            val online = govee.checkConnection()
+            _state.update {
+                it.copy(connectionStatus = if (online) ConnectionStatus.ONLINE else ConnectionStatus.OFFLINE)
             }
         }
     }
