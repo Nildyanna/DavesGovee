@@ -45,9 +45,17 @@ def get(url: str, headers: dict = {}) -> dict:
 # ── Steps ─────────────────────────────────────────────────────────────────────
 def login() -> str:
     print("Logging in to Govee...")
+    import time
     resp = post(
         "https://app2.govee.com/account/rest/account/v1/login",
-        {"email": GOVEE_EMAIL, "password": GOVEE_PASSWORD, "client": "dehumidifier-dispatch"},
+        {"email": GOVEE_EMAIL, "password": GOVEE_PASSWORD, "client": "15ad88905d96c956"},
+        headers={
+            "appVersion": "6.5.02",
+            "clientType": "1",
+            "iotVersion": "0",
+            "timestamp": str(int(time.time() * 1000)),
+            "User-Agent": "okhttp/3.12.0",
+        },
     )
     token = resp.get("data", {}).get("token")
     if not token:
