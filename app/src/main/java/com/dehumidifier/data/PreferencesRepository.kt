@@ -22,6 +22,7 @@ class PreferencesRepository(private val context: Context) {
         private val KEY_VPD_BAND = doublePreferencesKey("vpd_band")
         private val KEY_SENSOR_DEVICE_ID = stringPreferencesKey("sensor_device_id")
         private val KEY_SENSOR_MODEL = stringPreferencesKey("sensor_model")
+        private val KEY_CLIENT_ID = stringPreferencesKey("govee_client_id")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { it[KEY_TOKEN] }
@@ -33,6 +34,12 @@ class PreferencesRepository(private val context: Context) {
     val vpdBand: Flow<Double> = context.dataStore.data.map { it[KEY_VPD_BAND] ?: 0.1 }
     val sensorDeviceId: Flow<String?> = context.dataStore.data.map { it[KEY_SENSOR_DEVICE_ID] }
     val sensorModel: Flow<String?> = context.dataStore.data.map { it[KEY_SENSOR_MODEL] }
+    // Stable per-installation UUID used as Govee client identifier
+    val clientId: Flow<String> = context.dataStore.data.map {
+        it[KEY_CLIENT_ID] ?: java.util.UUID.randomUUID().toString().also { id ->
+            context.dataStore.edit { prefs -> prefs[KEY_CLIENT_ID] = id }
+        }
+    }
 
     suspend fun saveAuth(token: String) {
         context.dataStore.edit { it[KEY_TOKEN] = token }

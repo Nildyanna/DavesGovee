@@ -62,13 +62,15 @@ data class DeviceStateData(
     val properties: List<DeviceProperty>,
 )
 
-// Govee sends one property per list entry, e.g. [{"humidity":65},{"temperature":23.5}]
+// Govee sends one property per list entry, e.g. [{"humidity":65},{"temperature":23.5},{"vpd":0.82}]
 data class DeviceProperty(
     val online: Boolean? = null,
     val humidity: Int? = null,
     val temperature: Double? = null,
+    val vpd: Double? = null,
 )
 
+fun List<DeviceProperty>.vpd(): Double? = firstNotNullOfOrNull { it.vpd }
 fun List<DeviceProperty>.humidity(): Int? = firstNotNullOfOrNull { it.humidity }
 fun List<DeviceProperty>.temperatureCelsius(): Double? = firstNotNullOfOrNull { it.temperature }
 

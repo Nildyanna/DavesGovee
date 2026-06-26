@@ -5,7 +5,6 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.dehumidifier.data.GoveeRepository
 import com.dehumidifier.data.PreferencesRepository
-import com.dehumidifier.data.computeVpd
 import com.dehumidifier.data.vpdToFanSpeed
 import kotlinx.coroutines.flow.first
 
@@ -27,8 +26,7 @@ class AutomationWorker(
 
         return try {
             val govee = GoveeRepository()
-            val reading = govee.getSensorReading(token, sensorId, sensorModel).getOrThrow()
-            val currentVpd = computeVpd(reading.tempCelsius, reading.humidity)
+            val currentVpd = govee.getVpd(token, sensorId, sensorModel).getOrThrow()
             val speed = vpdToFanSpeed(currentVpd, targetVpd, vpdBand)
 
             govee.setFanSpeed(token, deviceId, model, speed).getOrThrow()

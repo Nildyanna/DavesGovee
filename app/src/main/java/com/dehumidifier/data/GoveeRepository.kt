@@ -58,14 +58,14 @@ class GoveeRepository {
         }
     }
 
-    suspend fun login(email: String, password: String): Result<String> = runCatching {
+    suspend fun login(email: String, password: String, clientId: String): Result<String> = runCatching {
         val response = api.login(
             appVersion = "6.5.02",
             clientType = "1",
             iotVersion = "0",
             timestamp = System.currentTimeMillis().toString(),
             userAgent = "okhttp/3.12.0",
-            request = LoginRequest(email = email, password = password),
+            request = LoginRequest(email = email, password = password, client = clientId),
         )
         val token = response.data?.token
         if (token.isNullOrBlank()) {
@@ -82,15 +82,17 @@ class GoveeRepository {
         response.data?.devices ?: error("No devices: ${response.message}")
     }
 
-    data class SensorReading(val tempCelsius: Double, val humidity: Int)
-
-    suspend fun getSensorReading(token: String, deviceId: String, model: String): Result<SensorReading> =
+    suspend fun getVpd(token: String, deviceId: String, model: String): Result<Double> =
         runCatching {
             val response = api.getDeviceState("Bearer $token", deviceId, model)
             val props = response.data?.properties ?: error("No state data: ${response.message}")
-            val temp = props.temperatureCelsius() ?: error("No temperature in sensor response")
-            val rh = props.humidity() ?: error("No humidity in sensor response")
-            SensorReading(temp, rh)
+            // Use device-reported VPD if available; otherwise compute from temp + RH
+            props.vpd()
+                ?: run {
+                    val temp = props.temperatureCelsius() ?: error("No VPD or temperature in sensor response")
+                    val rh = props.humidity() ?: error("No VPD or humidity in sensor response")
+                    computeVpd(temp, rh)
+                }
         }
 
     suspend fun setFanSpeed(
