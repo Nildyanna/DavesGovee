@@ -37,7 +37,14 @@ class GoveeRepository {
     }
 
     suspend fun login(email: String, password: String): Result<String> = runCatching {
-        val response = api.login(LoginRequest(email = email, password = password))
+        val response = api.login(
+            appVersion = "6.5.02",
+            clientType = "1",
+            iotVersion = "0",
+            timestamp = System.currentTimeMillis().toString(),
+            userAgent = "okhttp/3.12.0",
+            request = LoginRequest(email = email, password = password),
+        )
         response.data?.token ?: error("Login failed: ${response.message}")
     }
 
