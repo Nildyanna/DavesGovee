@@ -97,7 +97,13 @@ data class ControlResponse(
 interface GoveeApiService {
 
     @POST("account/rest/account/v1/login")
-    suspend fun login(@Body request: LoginRequest): LoginResponse
+    suspend fun login(
+        @Header("appVersion") appVersion: String,
+        @Header("clientType") clientType: String,
+        @Header("iotVersion") iotVersion: String,
+        @Header("timestamp") timestamp: String,
+        @Body request: LoginRequest,
+    ): LoginResponse
 
     @GET("device/rest/devices/v1/list")
     suspend fun getDevices(@Header("Authorization") token: String): DeviceListResponse

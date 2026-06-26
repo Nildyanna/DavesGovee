@@ -60,6 +60,10 @@ class GoveeRepository {
 
     suspend fun login(email: String, password: String, clientId: String): Result<String> = runCatching {
         val response = api.login(
+            appVersion = "6.6.01",
+            clientType = "1",
+            iotVersion = "0",
+            timestamp = System.currentTimeMillis().toString(),
             request = LoginRequest(email = email, password = password, client = clientId),
         )
         val token = response.data?.token
