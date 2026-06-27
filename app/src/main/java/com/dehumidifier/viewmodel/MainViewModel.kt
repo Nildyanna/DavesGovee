@@ -110,7 +110,7 @@ class MainViewModel(
                     _state.update { it.copy(isLoading = false, devices = devices) }
                 }
                 .onFailure { e ->
-                    _state.update { it.copy(isLoading = false, error = "Invalid API key: ${e.message}") }
+                    _state.update { it.copy(isLoading = false, error = e.message) }
                 }
         }
     }
