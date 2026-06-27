@@ -41,9 +41,6 @@ class MainActivity : ComponentActivity() {
                             onDownloadUpdate = { vm.downloadUpdate(this@MainActivity) },
                         )
                     } else {
-                        if (!state.devicesFetched && !state.isLoading && apiKey != null) {
-                            vm.loadDevices(apiKey!!)
-                        }
                         MainScreen(
                             state = state,
                             onRefreshDevices = { apiKey?.let { vm.loadDevices(it) } },
