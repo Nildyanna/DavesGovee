@@ -14,7 +14,6 @@ android {
         targetSdk = 35
         versionCode = (System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: 3)
         versionName = "1.${System.getenv("BUILD_NUMBER") ?: "dev"}"
-        buildConfigField("String", "GITHUB_TOKEN", "\"${System.getenv("GITHUB_READ_TOKEN") ?: project.findProperty("github.token") ?: ""}\"")
         buildConfigField("String", "GITHUB_REPO", "\"Nildyanna/DavesGovee\"")
     }
 
