@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit
 data class UiState(
     val isLoggedIn: Boolean = false,
     val isLoading: Boolean = false,
+    val devicesFetched: Boolean = false,
     val isDispatching: Boolean = false,
     val error: String? = null,
     val updateCheckResult: String? = null,
@@ -107,7 +108,7 @@ class MainViewModel(
             govee.listDevices(apiKey)
                 .onSuccess { devices ->
                     prefs.saveApiKey(apiKey)
-                    _state.update { it.copy(isLoading = false, devices = devices) }
+                    _state.update { it.copy(isLoading = false, devices = devices, devicesFetched = true) }
                 }
                 .onFailure { e ->
                     _state.update { it.copy(isLoading = false, error = e.message) }
@@ -120,7 +121,7 @@ class MainViewModel(
             _state.update { it.copy(isLoading = true, error = null) }
             govee.listDevices(apiKey)
                 .onSuccess { devices ->
-                    _state.update { it.copy(isLoading = false, devices = devices) }
+                    _state.update { it.copy(isLoading = false, devices = devices, devicesFetched = true) }
                 }
                 .onFailure { e ->
                     _state.update { it.copy(isLoading = false, error = e.message) }
