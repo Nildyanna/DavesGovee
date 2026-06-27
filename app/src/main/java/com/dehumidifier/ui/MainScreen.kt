@@ -10,10 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -58,6 +58,7 @@ fun MainScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
         Row(
@@ -90,8 +91,8 @@ fun MainScreen(
         Spacer(Modifier.height(8.dp))
 
         if (state.devices.isNotEmpty()) {
-            LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
-                items(state.devices) { device ->
+            Column {
+                state.devices.forEach { device ->
                     DeviceCard(
                         device = device,
                         selected = device.device == state.selectedDeviceId,
@@ -127,8 +128,8 @@ fun MainScreen(
         Spacer(Modifier.height(8.dp))
 
         if (state.devices.isNotEmpty()) {
-            LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
-                items(state.devices) { device ->
+            Column {
+                state.devices.forEach { device ->
                     DeviceCard(
                         device = device,
                         selected = device.device == state.selectedSensorId,
