@@ -3,6 +3,7 @@ package com.dehumidifier.data
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import com.dehumidifier.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
