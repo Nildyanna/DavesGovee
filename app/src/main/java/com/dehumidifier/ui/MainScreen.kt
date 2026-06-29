@@ -41,6 +41,8 @@ fun MainScreen(
     onSaveLocation: (lat: Double, lon: Double) -> Unit,
     onToggleAutomation: (Boolean) -> Unit,
     onDispatch: () -> Unit,
+    onCheckUpdate: () -> Unit,
+    onInstallUpdate: () -> Unit,
     onLogout: () -> Unit,
 ) {
     var latText by remember { mutableStateOf("") }
@@ -166,6 +168,41 @@ fun MainScreen(
         }
 
         state.lastStatus?.let {
+            Spacer(Modifier.height(8.dp))
+            Text(it, style = MaterialTheme.typography.bodySmall)
+        }
+
+        Spacer(Modifier.height(16.dp))
+        HorizontalDivider()
+        Spacer(Modifier.height(16.dp))
+
+        Text("App Updates", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = onCheckUpdate,
+                enabled = !state.isUpdating,
+                modifier = Modifier.weight(1f),
+            ) {
+                if (state.isUpdating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .height(18.dp)
+                            .padding(end = 8.dp),
+                        strokeWidth = 2.dp,
+                    )
+                }
+                Text("Check for Updates")
+            }
+            if (state.availableUpdate != null) {
+                Button(
+                    onClick = onInstallUpdate,
+                    enabled = !state.isUpdating,
+                    modifier = Modifier.weight(1f),
+                ) { Text("Download & Install") }
+            }
+        }
+        state.updateStatus?.let {
             Spacer(Modifier.height(8.dp))
             Text(it, style = MaterialTheme.typography.bodySmall)
         }

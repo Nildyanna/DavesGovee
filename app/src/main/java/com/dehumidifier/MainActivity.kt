@@ -43,6 +43,8 @@ class MainActivity : ComponentActivity() {
                             onSaveLocation = vm::saveLocation,
                             onToggleAutomation = vm::setAutomation,
                             onDispatch = vm::dispatch,
+                            onCheckUpdate = vm::checkForUpdate,
+                            onInstallUpdate = vm::downloadAndInstallUpdate,
                             onLogout = vm::logout,
                         )
                     }

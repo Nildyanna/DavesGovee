@@ -1,6 +1,7 @@
 package com.dehumidifier.viewmodel
 
 import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -9,9 +10,12 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.dehumidifier.data.GithubRelease
 import com.dehumidifier.data.GoveeDevice
 import com.dehumidifier.data.GoveeRepository
 import com.dehumidifier.data.PreferencesRepository
+import com.dehumidifier.data.UpdateCheck
+import com.dehumidifier.data.UpdateRepository
 import com.dehumidifier.worker.AutomationWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,12 +34,16 @@ data class UiState(
     val selectedDeviceId: String? = null,
     val automationEnabled: Boolean = false,
     val lastStatus: String? = null,
+    val isUpdating: Boolean = false,
+    val updateStatus: String? = null,
+    val availableUpdate: GithubRelease? = null,
 )
 
 class MainViewModel(
     private val context: Context,
     private val govee: GoveeRepository = GoveeRepository(),
     private val prefs: PreferencesRepository = PreferencesRepository(context),
+    private val updates: UpdateRepository = UpdateRepository(),
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(UiState())
@@ -142,6 +150,58 @@ class MainViewModel(
                     _state.update { it.copy(isDispatching = false, lastStatus = status) }
                 }
             }
+        }
+    }
+
+    fun checkForUpdate() {
+        viewModelScope.launch {
+            _state.update { it.copy(isUpdating = true, updateStatus = null, availableUpdate = null) }
+            updates.check(context)
+                .onSuccess { result ->
+                    when (result) {
+                        is UpdateCheck.Available -> _state.update {
+                            it.copy(
+                                isUpdating = false,
+                                updateStatus = "Update ${result.versionName} available.",
+                                availableUpdate = result.release,
+                            )
+                        }
+                        is UpdateCheck.UpToDate -> _state.update {
+                            it.copy(isUpdating = false, updateStatus = "You're on the latest version.")
+                        }
+                        is UpdateCheck.NoArtifact -> _state.update {
+                            it.copy(
+                                isUpdating = false,
+                                updateStatus = "Version ${result.versionName} exists but has no APK to install.",
+                            )
+                        }
+                    }
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(isUpdating = false, updateStatus = "Update check failed: ${e.message}") }
+                }
+        }
+    }
+
+    fun downloadAndInstallUpdate() {
+        val release = _state.value.availableUpdate ?: return
+        if (!updates.canInstall(context)) {
+            _state.update { it.copy(updateStatus = "Allow installs from this app, then tap update again.") }
+            context.startActivity(
+                updates.installPermissionIntent(context).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(isUpdating = true, updateStatus = "Downloading update…") }
+            updates.download(context, release)
+                .onSuccess { apk ->
+                    _state.update { it.copy(isUpdating = false, updateStatus = "Starting installer…") }
+                    updates.installApk(context, apk)
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(isUpdating = false, updateStatus = "Download failed: ${e.message}") }
+                }
         }
     }
 
