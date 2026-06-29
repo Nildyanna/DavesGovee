@@ -22,9 +22,6 @@ fun computeVpd(tempCelsius: Double, relativeHumidity: Int): Double {
 /**
  * Maps current VPD to fan speed relative to the target VPD.
  * [band] is a dead-band around the target — within ±band the fan stays Low.
- * Above target+band the VPD is too high (air is too dry for the plants/space),
- * but for a dehumidifier the concern is the opposite: current VPD below target
- * means the air is too humid, so we run harder.
  *
  * Below target - band  → HIGH (very humid, run hard)
  * Below target         → MEDIUM (somewhat humid)
@@ -49,7 +46,7 @@ class GoveeRepository {
     suspend fun checkConnection(): Boolean = withContext(Dispatchers.IO) {
         try {
             val response = NetworkModule.okHttp
-                .newCall(Request.Builder().url("https://app2.govee.com/").head().build())
+                .newCall(Request.Builder().url("https://developer-api.govee.com/").head().build())
                 .execute()
             response.close()
             true
@@ -58,34 +55,17 @@ class GoveeRepository {
         }
     }
 
-    suspend fun login(email: String, password: String, clientId: String): Result<String> = runCatching {
-        val response = api.login(
-            appVersion = "6.6.01",
-            clientType = "1",
-            iotVersion = "0",
-            timestamp = System.currentTimeMillis().toString(),
-            request = LoginRequest(email = email, password = password, client = clientId),
-        )
-        val token = response.data?.token
-        if (token.isNullOrBlank()) {
-            if (response.status == 454) {
-                error("Govee sent a verification email to your account. Check your inbox, click the link, then try logging in again.")
-            }
-            error("Login failed (${response.status}): ${response.message}")
-        }
-        token
+    suspend fun listDevices(apiKey: String): Result<List<GoveeDevice>> = runCatching {
+        val response = api.getDevices(apiKey)
+        val devices = response.data?.devices
+        if (devices == null) error("Govee API error (${response.status}): ${response.message}")
+        devices
     }
 
-    suspend fun listDevices(token: String): Result<List<GoveeDevice>> = runCatching {
-        val response = api.getDevices("Bearer $token")
-        response.data?.devices ?: error("No devices: ${response.message}")
-    }
-
-    suspend fun getVpd(token: String, deviceId: String, model: String): Result<Double> =
+    suspend fun getVpd(apiKey: String, deviceId: String, model: String): Result<Double> =
         runCatching {
-            val response = api.getDeviceState("Bearer $token", deviceId, model)
+            val response = api.getDeviceState(apiKey, deviceId, model)
             val props = response.data?.properties ?: error("No state data: ${response.message}")
-            // Use device-reported VPD if available; otherwise compute from temp + RH
             props.vpd()
                 ?: run {
                     val temp = props.temperatureCelsius() ?: error("No VPD or temperature in sensor response")
@@ -95,13 +75,13 @@ class GoveeRepository {
         }
 
     suspend fun setFanSpeed(
-        token: String,
+        apiKey: String,
         deviceId: String,
         model: String,
         speed: FanSpeed,
     ): Result<Unit> = runCatching {
         val response = api.control(
-            token = "Bearer $token",
+            apiKey = apiKey,
             request = ControlRequest(
                 device = deviceId,
                 model = model,

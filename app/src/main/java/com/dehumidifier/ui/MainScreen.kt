@@ -10,10 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,8 +40,11 @@ import com.dehumidifier.viewmodel.UiState
 @Composable
 fun MainScreen(
     state: UiState,
+    onRefreshDevices: () -> Unit,
     onSelectDevice: (GoveeDevice) -> Unit,
     onSelectSensor: (GoveeDevice) -> Unit,
+    onSaveManualDevice: (deviceId: String, model: String) -> Unit,
+    onSaveManualSensor: (deviceId: String, model: String) -> Unit,
     onSaveVpdSettings: (targetVpd: Double, band: Double) -> Unit,
     onToggleAutomation: (Boolean) -> Unit,
     onDispatch: () -> Unit,
@@ -55,6 +58,7 @@ fun MainScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
         Row(
@@ -86,11 +90,9 @@ fun MainScreen(
         Text("Dehumidifier", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
 
-        if (state.devices.isEmpty()) {
-            Text("No devices found.", style = MaterialTheme.typography.bodyMedium)
-        } else {
-            LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
-                items(state.devices) { device ->
+        if (state.devices.isNotEmpty()) {
+            Column {
+                state.devices.forEach { device ->
                     DeviceCard(
                         device = device,
                         selected = device.device == state.selectedDeviceId,
@@ -99,6 +101,23 @@ fun MainScreen(
                     Spacer(Modifier.height(8.dp))
                 }
             }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (state.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Text("Loading devices…", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    state.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                    TextButton(onClick = onRefreshDevices) { Text("Refresh") }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            ManualDeviceEntry(
+                label = "Dehumidifier",
+                savedId = state.selectedDeviceId,
+                savedModel = state.selectedDeviceModel,
+                onSave = onSaveManualDevice,
+            )
         }
 
         Spacer(Modifier.height(16.dp))
@@ -108,11 +127,9 @@ fun MainScreen(
         Text("Hygrometer (sensor)", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
 
-        if (state.devices.isEmpty()) {
-            Text("No devices found.", style = MaterialTheme.typography.bodyMedium)
-        } else {
-            LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
-                items(state.devices) { device ->
+        if (state.devices.isNotEmpty()) {
+            Column {
+                state.devices.forEach { device ->
                     DeviceCard(
                         device = device,
                         selected = device.device == state.selectedSensorId,
@@ -121,6 +138,13 @@ fun MainScreen(
                     Spacer(Modifier.height(8.dp))
                 }
             }
+        } else {
+            ManualDeviceEntry(
+                label = "Hygrometer",
+                savedId = state.selectedSensorId,
+                savedModel = state.selectedSensorModel,
+                onSave = onSaveManualSensor,
+            )
         }
 
         Spacer(Modifier.height(16.dp))
@@ -265,6 +289,45 @@ private fun ConnectionStatusRow(status: ConnectionStatus, onRetry: () -> Unit) {
         if (status != ConnectionStatus.CHECKING) {
             TextButton(onClick = onRetry) { Text("Check", style = MaterialTheme.typography.bodySmall) }
         }
+    }
+}
+
+@Composable
+private fun ManualDeviceEntry(
+    label: String,
+    savedId: String?,
+    savedModel: String?,
+    onSave: (deviceId: String, model: String) -> Unit,
+) {
+    var deviceId by remember(savedId) { mutableStateOf(savedId ?: "") }
+    var model by remember(savedModel) { mutableStateOf(savedModel ?: "") }
+    val saved = deviceId == savedId && model == savedModel && savedId != null
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (saved) {
+            Text("$label set: $savedId (${savedModel})", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        }
+        OutlinedTextField(
+            value = deviceId,
+            onValueChange = { deviceId = it },
+            label = { Text("$label Device ID") },
+            placeholder = { Text("e.g. 34:20:03:15:82:ae") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = model,
+            onValueChange = { model = it },
+            label = { Text("$label Model") },
+            placeholder = { Text("e.g. H7151") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Button(
+            onClick = { onSave(deviceId.trim(), model.trim()) },
+            enabled = deviceId.isNotBlank() && model.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Save $label") }
     }
 }
 

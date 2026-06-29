@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val state by vm.state.collectAsState()
-                    val token by vm.savedToken.collectAsState()
+                    val apiKey by vm.savedApiKey.collectAsState()
 
                     if (!state.isLoggedIn) {
                         LoginScreen(
@@ -33,18 +33,21 @@ class MainActivity : ComponentActivity() {
                             error = state.error,
                             onLogin = vm::login,
                             updateAvailable = state.updateAvailable,
+                            isCheckingUpdate = state.isCheckingUpdate,
                             isDownloadingUpdate = state.isDownloadingUpdate,
                             updateProgress = state.updateProgress,
+                            updateCheckResult = state.updateCheckResult,
+                            onCheckUpdate = vm::checkForUpdate,
                             onDownloadUpdate = { vm.downloadUpdate(this@MainActivity) },
                         )
                     } else {
-                        if (state.devices.isEmpty() && token != null) {
-                            vm.loadDevices(token!!)
-                        }
                         MainScreen(
                             state = state,
+                            onRefreshDevices = { apiKey?.let { vm.loadDevices(it) } },
                             onSelectDevice = vm::selectDevice,
                             onSelectSensor = vm::selectSensor,
+                            onSaveManualDevice = vm::saveManualDevice,
+                            onSaveManualSensor = vm::saveManualSensor,
                             onSaveVpdSettings = vm::saveVpdSettings,
                             onToggleAutomation = vm::setAutomation,
                             onDispatch = vm::dispatch,
