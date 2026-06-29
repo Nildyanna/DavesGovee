@@ -70,6 +70,18 @@ class MainViewModel(
         viewModelScope.launch {
             prefs.sensorDeviceId.collect { id -> _state.update { it.copy(selectedSensorId = id) } }
         }
+        // Restore the previously selected dehumidifier so controls aren't disabled after a restart.
+        viewModelScope.launch {
+            prefs.deviceId.collect { id -> _state.update { it.copy(selectedDeviceId = id) } }
+        }
+        // Reflect the real automation state from WorkManager rather than assuming OFF on launch.
+        viewModelScope.launch {
+            WorkManager.getInstance(context)
+                .getWorkInfosForUniqueWorkFlow(AUTOMATION_WORK_NAME)
+                .collect { infos ->
+                    _state.update { it.copy(automationEnabled = infos.any { info -> !info.state.isFinished }) }
+                }
+        }
         checkConnection()
         checkForUpdate()
     }
@@ -140,12 +152,12 @@ class MainViewModel(
             val request = PeriodicWorkRequestBuilder<AutomationWorker>(1, TimeUnit.HOURS)
                 .build()
             wm.enqueueUniquePeriodicWork(
-                "dehumidifier_automation",
+                AUTOMATION_WORK_NAME,
                 ExistingPeriodicWorkPolicy.KEEP,
                 request,
             )
         } else {
-            wm.cancelUniqueWork("dehumidifier_automation")
+            wm.cancelUniqueWork(AUTOMATION_WORK_NAME)
         }
         _state.update { it.copy(automationEnabled = enabled) }
     }
@@ -200,6 +212,10 @@ class MainViewModel(
             }
             _state.update { it.copy(isDownloadingUpdate = false) }
         }
+    }
+
+    companion object {
+        private const val AUTOMATION_WORK_NAME = "dehumidifier_automation"
     }
 
     class Factory(private val context: Context) : ViewModelProvider.Factory {
