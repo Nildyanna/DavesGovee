@@ -50,6 +50,21 @@ class MainViewModel(
                 _state.update { it.copy(isLoggedIn = token != null) }
             }
         }
+        // Restore the previously selected device so controls aren't disabled after a restart.
+        viewModelScope.launch {
+            prefs.deviceId.collect { deviceId ->
+                _state.update { it.copy(selectedDeviceId = deviceId) }
+            }
+        }
+        // Reflect the real automation state from WorkManager rather than assuming OFF on launch.
+        viewModelScope.launch {
+            WorkManager.getInstance(context)
+                .getWorkInfosForUniqueWorkFlow(AUTOMATION_WORK_NAME)
+                .collect { infos ->
+                    val enabled = infos.any { !it.state.isFinished }
+                    _state.update { it.copy(automationEnabled = enabled) }
+                }
+        }
     }
 
     fun login(email: String, password: String) {
@@ -96,12 +111,12 @@ class MainViewModel(
             val request = PeriodicWorkRequestBuilder<AutomationWorker>(1, TimeUnit.HOURS)
                 .build()
             wm.enqueueUniquePeriodicWork(
-                "dehumidifier_automation",
+                AUTOMATION_WORK_NAME,
                 ExistingPeriodicWorkPolicy.KEEP,
                 request,
             )
         } else {
-            wm.cancelUniqueWork("dehumidifier_automation")
+            wm.cancelUniqueWork(AUTOMATION_WORK_NAME)
         }
         _state.update { it.copy(automationEnabled = enabled) }
     }
@@ -139,6 +154,10 @@ class MainViewModel(
     }
 
     fun dismissError() = _state.update { it.copy(error = null) }
+
+    companion object {
+        private const val AUTOMATION_WORK_NAME = "dehumidifier_automation"
+    }
 
     class Factory(private val context: Context) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
