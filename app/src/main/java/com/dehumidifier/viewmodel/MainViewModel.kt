@@ -73,6 +73,8 @@ class MainViewModel(
                     _state.update { it.copy(automationEnabled = enabled) }
                 }
         }
+        // Quietly check for a newer release once per process start.
+        checkForUpdate(silent = true)
     }
 
     fun login(email: String, password: String) {
@@ -153,7 +155,11 @@ class MainViewModel(
         }
     }
 
-    fun checkForUpdate() {
+    /**
+     * @param silent when true (the automatic check on launch), only surface a message if an
+     *   update is available — stay quiet about "up to date" and transient failures.
+     */
+    fun checkForUpdate(silent: Boolean = false) {
         viewModelScope.launch {
             _state.update { it.copy(isUpdating = true, updateStatus = null, availableUpdate = null) }
             updates.check(context)
@@ -167,18 +173,27 @@ class MainViewModel(
                             )
                         }
                         is UpdateCheck.UpToDate -> _state.update {
-                            it.copy(isUpdating = false, updateStatus = "You're on the latest version.")
+                            it.copy(
+                                isUpdating = false,
+                                updateStatus = if (silent) null else "You're on the latest version.",
+                            )
                         }
                         is UpdateCheck.NoArtifact -> _state.update {
                             it.copy(
                                 isUpdating = false,
-                                updateStatus = "Version ${result.versionName} exists but has no APK to install.",
+                                updateStatus = if (silent) null
+                                else "Version ${result.versionName} exists but has no APK to install.",
                             )
                         }
                     }
                 }
                 .onFailure { e ->
-                    _state.update { it.copy(isUpdating = false, updateStatus = "Update check failed: ${e.message}") }
+                    _state.update {
+                        it.copy(
+                            isUpdating = false,
+                            updateStatus = if (silent) null else "Update check failed: ${e.message}",
+                        )
+                    }
                 }
         }
     }

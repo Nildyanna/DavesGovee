@@ -12,3 +12,7 @@ local.properties
 
 # Credentials - never commit
 .env
+
+# Signing keystore - never commit
+*.keystore
+*.jks
