@@ -24,4 +24,6 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --no-daemon
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --no-daemon
