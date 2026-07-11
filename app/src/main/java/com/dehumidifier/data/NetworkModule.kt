@@ -29,11 +29,4 @@ object NetworkModule {
         .addConverterFactory(MoshiConverterFactory.create(moshi))
         .build()
         .create(GoveeApiService::class.java)
-
-    val weatherApi: WeatherApiService = Retrofit.Builder()
-        .baseUrl("https://api.open-meteo.com/")
-        .client(okHttp)
-        .addConverterFactory(MoshiConverterFactory.create(moshi))
-        .build()
-        .create(WeatherApiService::class.java)
 }
