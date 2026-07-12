@@ -1,5 +1,6 @@
 package com.dehumidifier.data
 
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
@@ -39,6 +40,9 @@ fun vpdToFanSpeed(currentVpd: Double, targetVpd: Double, band: Double): FanSpeed
 
 enum class ConnectionStatus { UNKNOWN, CHECKING, ONLINE, OFFLINE }
 
+private const val WORK_MODE_TYPE = "devices.capabilities.work_mode"
+private const val WORK_MODE_INSTANCE = "workMode"
+
 class GoveeRepository {
 
     private val api = NetworkModule.goveeApi
@@ -46,7 +50,7 @@ class GoveeRepository {
     suspend fun checkConnection(): Boolean = withContext(Dispatchers.IO) {
         try {
             val response = NetworkModule.okHttp
-                .newCall(Request.Builder().url("https://developer-api.govee.com/").head().build())
+                .newCall(Request.Builder().url("https://openapi.api.govee.com/").head().build())
                 .execute()
             response.close()
             true
@@ -57,22 +61,47 @@ class GoveeRepository {
 
     suspend fun listDevices(apiKey: String): Result<List<GoveeDevice>> = runCatching {
         val response = api.getDevices(apiKey)
-        val devices = response.data?.devices
-        if (devices == null) error("Govee API error (${response.status}): ${response.message}")
-        devices
+        if (response.code != 200) error("Govee API error (${response.code}): ${response.message}")
+        response.data
     }
 
     suspend fun getVpd(apiKey: String, deviceId: String, model: String): Result<Double> =
         runCatching {
-            val response = api.getDeviceState(apiKey, deviceId, model)
-            val props = response.data?.properties ?: error("No state data: ${response.message}")
-            props.vpd()
-                ?: run {
-                    val temp = props.temperatureCelsius() ?: error("No VPD or temperature in sensor response")
-                    val rh = props.humidity() ?: error("No VPD or humidity in sensor response")
-                    computeVpd(temp, rh)
-                }
+            val response = api.getDeviceState(
+                apiKey = apiKey,
+                request = DeviceStateRequest(
+                    requestId = UUID.randomUUID().toString(),
+                    payload = DeviceStatePayload(sku = model, device = deviceId),
+                ),
+            )
+            val caps = response.payload?.capabilities
+                ?: error("No state data (${response.code}): ${response.msg}")
+            val temp = caps.propertyValue("sensorTemperature", "temperature")
+                ?: error("No temperature in sensor response")
+            val rh = caps.propertyValue("sensorHumidity", "humidity")
+                ?: error("No humidity in sensor response")
+            computeVpd(temp, rh.toInt())
         }
+
+    /**
+     * Builds the work_mode control value for [speed]. Prefers the device's own declared
+     * workMode/gear options (from its `devices.capabilities.work_mode` capability) so the
+     * correct mode id and gear numbering is used regardless of SKU; falls back to the
+     * documented default (workMode=1 "Gear Mode", modeValue=1/2/3) if the device's
+     * capabilities aren't available or don't declare a work_mode capability.
+     */
+    private fun resolveWorkModeValue(device: GoveeDevice?, speed: FanSpeed): WorkModeValue {
+        val fields = device?.capabilities
+            ?.firstOrNull { it.type == WORK_MODE_TYPE || it.instance == WORK_MODE_INSTANCE }
+            ?.parameters?.fields
+        val modeId = fields?.firstOrNull { it.fieldName == "workMode" }
+            ?.options?.firstOrNull()?.value?.toInt() ?: 1
+        val gearOptions = fields?.firstOrNull { it.fieldName == "modeValue" }?.options
+        val gearValue = gearOptions
+            ?.getOrNull(speed.ordinal)?.value?.toInt()
+            ?: speed.goveeValue
+        return WorkModeValue(workMode = modeId, modeValue = gearValue)
+    }
 
     suspend fun setFanSpeed(
         apiKey: String,
@@ -80,14 +109,23 @@ class GoveeRepository {
         model: String,
         speed: FanSpeed,
     ): Result<Unit> = runCatching {
+        val device = listDevices(apiKey).getOrNull()
+            ?.firstOrNull { it.device == deviceId && it.sku == model }
         val response = api.control(
             apiKey = apiKey,
             request = ControlRequest(
-                device = deviceId,
-                model = model,
-                cmd = DeviceCmd(name = "workMode", value = speed.goveeValue),
+                requestId = UUID.randomUUID().toString(),
+                payload = ControlPayload(
+                    sku = model,
+                    device = deviceId,
+                    capability = ControlCapability(
+                        type = WORK_MODE_TYPE,
+                        instance = WORK_MODE_INSTANCE,
+                        value = resolveWorkModeValue(device, speed),
+                    ),
+                ),
             ),
         )
-        if (response.status != 200) error("Control failed: ${response.message}")
+        if (response.code != 200) error("Control failed (${response.code}): ${response.msg}")
     }
 }

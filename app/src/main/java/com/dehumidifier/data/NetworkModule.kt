@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit
 object NetworkModule {
 
     private val moshi = Moshi.Builder()
+        .add(LenientDoubleAdapter())
         .addLast(KotlinJsonAdapterFactory())
         .build()
 
@@ -24,7 +25,7 @@ object NetworkModule {
         .build()
 
     val goveeApi: GoveeApiService = Retrofit.Builder()
-        .baseUrl("https://developer-api.govee.com/")
+        .baseUrl("https://openapi.api.govee.com/")
         .client(okHttp)
         .addConverterFactory(MoshiConverterFactory.create(moshi))
         .build()
