@@ -36,6 +36,14 @@ import androidx.compose.ui.unit.dp
 import com.dehumidifier.data.ConnectionStatus
 import com.dehumidifier.data.GoveeDevice
 import com.dehumidifier.viewmodel.UiState
+import java.util.Locale
+
+/**
+ * Parses locale-invariantly: [String.toDoubleOrNull] only accepts a period, but a comma-decimal
+ * device locale (most of Europe/Latin America) makes the decimal keyboard emit a comma, which
+ * silently fails to parse and disables the button with no visible error.
+ */
+private fun String.toDoubleLenient(): Double? = trim().replace(',', '.').toDoubleOrNull()
 
 @Composable
 fun MainScreen(
@@ -52,8 +60,9 @@ fun MainScreen(
     onCheckConnection: () -> Unit,
     onDownloadUpdate: () -> Unit,
 ) {
-    var targetVpdText by remember(state.targetVpd) { mutableStateOf("%.2f".format(state.targetVpd)) }
-    var vpdBandText by remember(state.vpdBand) { mutableStateOf("%.2f".format(state.vpdBand)) }
+    var targetVpdText by remember(state.targetVpd) { mutableStateOf(String.format(Locale.US, "%.2f", state.targetVpd)) }
+    var vpdBandText by remember(state.vpdBand) { mutableStateOf(String.format(Locale.US, "%.2f", state.vpdBand)) }
+    var vpdSaveConfirmed by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -162,7 +171,7 @@ fun MainScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = targetVpdText,
-                onValueChange = { targetVpdText = it },
+                onValueChange = { targetVpdText = it; vpdSaveConfirmed = false },
                 label = { Text("Target VPD (kPa)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -170,7 +179,7 @@ fun MainScreen(
             )
             OutlinedTextField(
                 value = vpdBandText,
-                onValueChange = { vpdBandText = it },
+                onValueChange = { vpdBandText = it; vpdSaveConfirmed = false },
                 label = { Text("Dead-band (kPa)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -180,14 +189,25 @@ fun MainScreen(
         Spacer(Modifier.height(8.dp))
         Button(
             onClick = {
-                val t = targetVpdText.toDoubleOrNull()
-                val b = vpdBandText.toDoubleOrNull()
-                if (t != null && b != null && t > 0 && b >= 0) onSaveVpdSettings(t, b)
+                val t = targetVpdText.toDoubleLenient()
+                val b = vpdBandText.toDoubleLenient()
+                if (t != null && b != null && t > 0 && b >= 0) {
+                    onSaveVpdSettings(t, b)
+                    vpdSaveConfirmed = true
+                }
             },
-            enabled = targetVpdText.toDoubleOrNull()?.let { it > 0 } == true &&
-                      vpdBandText.toDoubleOrNull()?.let { it >= 0 } == true,
+            enabled = targetVpdText.toDoubleLenient()?.let { it > 0 } == true &&
+                      vpdBandText.toDoubleLenient()?.let { it >= 0 } == true,
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Save VPD Settings") }
+        if (vpdSaveConfirmed) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Settings saved.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray,
+            )
+        }
 
         Spacer(Modifier.height(16.dp))
         HorizontalDivider()
