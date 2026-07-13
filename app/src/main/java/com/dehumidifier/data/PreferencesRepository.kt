@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore("settings")
@@ -32,6 +33,7 @@ class PreferencesRepository(private val context: Context) {
 
     suspend fun saveApiKey(key: String) {
         context.dataStore.edit { it[KEY_API_KEY] = key }
+        backupSnapshot()
     }
 
     suspend fun saveDevice(id: String, model: String) {
@@ -39,6 +41,7 @@ class PreferencesRepository(private val context: Context) {
             it[KEY_DEVICE_ID] = id
             it[KEY_DEVICE_MODEL] = model
         }
+        backupSnapshot()
     }
 
     suspend fun saveVpdSettings(targetVpd: Double, band: Double) {
@@ -46,6 +49,7 @@ class PreferencesRepository(private val context: Context) {
             it[KEY_TARGET_VPD] = targetVpd
             it[KEY_VPD_BAND] = band
         }
+        backupSnapshot()
     }
 
     suspend fun saveSensor(deviceId: String, model: String) {
@@ -53,9 +57,42 @@ class PreferencesRepository(private val context: Context) {
             it[KEY_SENSOR_DEVICE_ID] = deviceId
             it[KEY_SENSOR_MODEL] = model
         }
+        backupSnapshot()
     }
 
     suspend fun clear() {
         context.dataStore.edit { it.clear() }
+    }
+
+    /** Writes the current settings to the uninstall-surviving backup file (see BackupRepository). */
+    private suspend fun backupSnapshot() {
+        BackupRepository.write(
+            context,
+            BackupData(
+                apiKey = apiKey.first(),
+                deviceId = deviceId.first(),
+                deviceModel = deviceModel.first(),
+                sensorDeviceId = sensorDeviceId.first(),
+                sensorModel = sensorModel.first(),
+                targetVpd = targetVpd.first(),
+                vpdBand = vpdBand.first(),
+            ),
+        )
+    }
+
+    /** True if nothing has been configured yet — the signal to check for a restorable backup. */
+    suspend fun isEmpty(): Boolean = apiKey.first() == null
+
+    /** Restores all settings from a previously exported backup (see BackupRepository.read). */
+    suspend fun restoreFromBackup(data: BackupData) {
+        context.dataStore.edit { prefs ->
+            data.apiKey?.let { prefs[KEY_API_KEY] = it }
+            data.deviceId?.let { prefs[KEY_DEVICE_ID] = it }
+            data.deviceModel?.let { prefs[KEY_DEVICE_MODEL] = it }
+            data.sensorDeviceId?.let { prefs[KEY_SENSOR_DEVICE_ID] = it }
+            data.sensorModel?.let { prefs[KEY_SENSOR_MODEL] = it }
+            prefs[KEY_TARGET_VPD] = data.targetVpd
+            prefs[KEY_VPD_BAND] = data.vpdBand
+        }
     }
 }

@@ -9,6 +9,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.dehumidifier.data.BackupRepository
 import com.dehumidifier.data.ConnectionStatus
 import com.dehumidifier.data.GoveeDevice
 import com.dehumidifier.data.GoveeRepository
@@ -61,6 +62,13 @@ class MainViewModel(
     val savedDeviceId = prefs.deviceId.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     init {
+        // Fresh install with nothing saved yet — check for an uninstall-surviving backup
+        // (see BackupRepository) before anything else so the rest of init picks it up.
+        viewModelScope.launch {
+            if (prefs.isEmpty()) {
+                BackupRepository.read(context)?.let { backup -> prefs.restoreFromBackup(backup) }
+            }
+        }
         viewModelScope.launch {
             prefs.apiKey.collect { key ->
                 _state.update { it.copy(isLoggedIn = key != null) }
@@ -209,6 +217,7 @@ class MainViewModel(
         viewModelScope.launch {
             setAutomation(false)
             prefs.clear()
+            BackupRepository.delete(context)
             _state.update { UiState() }
         }
     }
