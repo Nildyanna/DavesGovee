@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
@@ -51,6 +52,13 @@ data class UiState(
     val vpdBand: Double = 0.1,
     /** Applies 9pm–9am local instead of [targetVpd]; shares [vpdBand]. See activeTargetVpd. */
     val nightVpd: Double = 0.8,
+    // Last known device status, from either "Run Now" or the hourly automation (see
+    // AutomationWorker's output data) — whichever ran most recently.
+    val lastTemp: Double? = null,
+    val lastHumidity: Double? = null,
+    val lastVpd: Double? = null,
+    val lastFanSpeed: String? = null,
+    val lastSkippedReason: String? = null,
 )
 
 class MainViewModel(
@@ -105,10 +113,30 @@ class MainViewModel(
                 .getWorkInfosForUniqueWorkFlow(AUTOMATION_WORK_NAME)
                 .collect { infos ->
                     _state.update { it.copy(automationEnabled = infos.any { info -> !info.state.isFinished }) }
+                    // Surface status from the hourly job too, not just manual "Run Now" — lets
+                    // the device-status card reflect background runs when the app is reopened.
+                    infos.firstOrNull { it.outputData.keyValueMap.isNotEmpty() }
+                        ?.let { applyOutputData(it.outputData) }
                 }
         }
         checkConnection()
         checkForUpdate()
+    }
+
+    /** Merges AutomationWorker's output data (temp/humidity/VPD/speed/skip reason) into state. */
+    private fun applyOutputData(data: Data) {
+        val map = data.keyValueMap
+        if (map.isEmpty()) return
+        val skipped = map["skipped"] as? Boolean ?: false
+        _state.update {
+            it.copy(
+                lastTemp = map["temp"] as? Double ?: it.lastTemp,
+                lastHumidity = map["humidity"] as? Double ?: it.lastHumidity,
+                lastVpd = map["vpd"] as? Double ?: it.lastVpd,
+                lastFanSpeed = if (skipped) it.lastFanSpeed else (map["speed"] as? String ?: it.lastFanSpeed),
+                lastSkippedReason = if (skipped) map["skippedReason"] as? String else null,
+            )
+        }
     }
 
     fun saveVpdSettings(targetVpd: Double, band: Double, nightVpd: Double) {
@@ -216,9 +244,12 @@ class MainViewModel(
             val finished = withTimeoutOrNull(45_000) {
                 wm.getWorkInfoByIdFlow(request.id).first { it != null && it.state.isFinished }
             }
+            finished?.outputData?.let { applyOutputData(it) }
+            val skippedReason = finished?.outputData?.keyValueMap?.get("skippedReason") as? String
             val status = when {
                 finished == null -> "Timed out. Check your connection and try again."
-                finished.state == WorkInfo.State.SUCCEEDED -> "Done — fan speed updated."
+                finished.state == WorkInfo.State.SUCCEEDED ->
+                    skippedReason ?: "Done — fan speed updated."
                 else -> "Run failed. Check API key and device selection."
             }
             _state.update { it.copy(isDispatching = false, lastStatus = status) }

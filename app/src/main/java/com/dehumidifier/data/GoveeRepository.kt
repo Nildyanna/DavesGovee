@@ -56,6 +56,26 @@ enum class ConnectionStatus { UNKNOWN, CHECKING, ONLINE, OFFLINE }
 private const val WORK_MODE_TYPE = "devices.capabilities.work_mode"
 private const val WORK_MODE_INSTANCE = "workMode"
 
+data class DeviceStatus(
+    val online: Boolean?,
+    val temperatureCelsius: Double?,
+    val humidity: Double?,
+    val vpd: Double?,
+    val alerts: List<String>,
+) {
+    val hasFault: Boolean get() = online == false || alerts.isNotEmpty()
+}
+
+private val FAULT_KEYWORDS = listOf("error", "fault", "full", "warn", "alarm")
+
+/** Any capability whose instance name looks fault-related and currently reads true/nonzero. */
+private fun detectAlerts(capabilities: List<GoveeCapability>): List<String> =
+    capabilities.mapNotNull { cap ->
+        val nameLower = cap.instance.lowercase()
+        if (FAULT_KEYWORDS.none { nameLower.contains(it) }) return@mapNotNull null
+        cap.instance.takeIf { cap.state?.value.asBoolean == true }
+    }
+
 /** Resolved work_mode control values for a specific device's LOW/MEDIUM/HIGH fan speeds. */
 data class FanSpeedMapping(
     val workMode: Int,
@@ -137,7 +157,16 @@ class GoveeRepository {
         response.data
     }
 
-    suspend fun getVpd(apiKey: String, deviceId: String, model: String): Result<Double> =
+    /**
+     * @param alerts human-readable names of any currently-active capability whose instance name
+     *   suggests a fault (contains "error"/"fault"/"full"/"warn"/"alarm" and reads true/nonzero).
+     *   Govee's exact capability name for e.g. a water-tank-full condition on the H7151 isn't
+     *   confirmed from this environment (no live device access), so this is deliberately
+     *   generic rather than hardcoded to a guessed name — it will catch whatever Govee actually
+     *   calls it, at the cost of possibly also flagging unrelated boolean capabilities that
+     *   happen to match a keyword.
+     */
+    suspend fun getDeviceStatus(apiKey: String, deviceId: String, model: String): Result<DeviceStatus> =
         runCatching {
             val response = unwrapHttpErrors {
                 api.getDeviceState(
@@ -151,10 +180,21 @@ class GoveeRepository {
             val caps = response.payload?.capabilities
                 ?: error("No state data (${response.code}): ${response.msg}")
             val temp = caps.propertyValue("sensorTemperature", "temperature")
-                ?: error("No temperature in sensor response")
             val rh = caps.propertyValue("sensorHumidity", "humidity")
-                ?: error("No humidity in sensor response")
-            computeVpd(temp, rh.toInt())
+            val online = caps.firstOrNull { it.instance.equals("online", ignoreCase = true) }
+                ?.state?.value.asBoolean
+            DeviceStatus(
+                online = online,
+                temperatureCelsius = temp,
+                humidity = rh,
+                vpd = if (temp != null && rh != null) computeVpd(temp, rh.toInt()) else null,
+                alerts = detectAlerts(caps),
+            )
+        }
+
+    suspend fun getVpd(apiKey: String, deviceId: String, model: String): Result<Double> =
+        getDeviceStatus(apiKey, deviceId, model).mapCatching {
+            it.vpd ?: error("No temperature/humidity in sensor response")
         }
 
     /**

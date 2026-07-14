@@ -12,6 +12,7 @@ object NetworkModule {
 
     private val moshi = Moshi.Builder()
         .add(LenientDoubleAdapter())
+        .add(LenientCapabilityValueAdapter())
         .addLast(KotlinJsonAdapterFactory())
         .build()
 

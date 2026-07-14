@@ -83,6 +83,36 @@ fun MainScreen(
         Spacer(Modifier.height(8.dp))
         ConnectionStatusRow(state.connectionStatus, onCheckConnection)
 
+        if (state.lastTemp != null || state.lastHumidity != null || state.lastVpd != null ||
+            state.lastFanSpeed != null || state.lastSkippedReason != null
+        ) {
+            Spacer(Modifier.height(8.dp))
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Device Status", style = MaterialTheme.typography.titleSmall)
+                    state.lastTemp?.let {
+                        Text("Temp: ${String.format(Locale.US, "%.1f", it)}°C", style = MaterialTheme.typography.bodySmall)
+                    }
+                    state.lastHumidity?.let {
+                        Text("Humidity: ${String.format(Locale.US, "%.0f", it)}%", style = MaterialTheme.typography.bodySmall)
+                    }
+                    state.lastVpd?.let {
+                        Text("VPD: ${String.format(Locale.US, "%.2f", it)} kPa", style = MaterialTheme.typography.bodySmall)
+                    }
+                    state.lastFanSpeed?.let {
+                        Text("Fan speed: $it", style = MaterialTheme.typography.bodySmall)
+                    }
+                    state.lastSkippedReason?.let {
+                        Text(
+                            "⚠ $it — automation skipped this run.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
+        }
+
         state.updateAvailable?.let { release ->
             Spacer(Modifier.height(8.dp))
             UpdateBanner(

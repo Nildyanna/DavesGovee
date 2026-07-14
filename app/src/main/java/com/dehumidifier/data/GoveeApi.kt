@@ -42,6 +42,48 @@ class LenientDoubleAdapter {
     }
 }
 
+/**
+ * A capability's live *state* value (as opposed to an option's enum value) can genuinely be a
+ * number (humidity, temperature) or a boolean (online, and likely any fault/error/full flag —
+ * e.g. a water-tank-full indicator). Unlike LenientDoubleAdapter, this preserves booleans
+ * instead of discarding them, since detecting a device fault means reading exactly that bit.
+ */
+sealed interface CapabilityValue {
+    data class Num(val value: Double) : CapabilityValue
+    data class Bool(val value: Boolean) : CapabilityValue
+    data class Str(val value: String) : CapabilityValue
+}
+
+val CapabilityValue?.asDouble: Double? get() = (this as? CapabilityValue.Num)?.value
+val CapabilityValue?.asBoolean: Boolean?
+    get() = when (this) {
+        is CapabilityValue.Bool -> value
+        is CapabilityValue.Num -> value != 0.0
+        else -> null
+    }
+
+class LenientCapabilityValueAdapter {
+    @FromJson
+    @Lenient
+    fun fromJson(reader: JsonReader): CapabilityValue? = when (reader.peek()) {
+        JsonReader.Token.NUMBER -> CapabilityValue.Num(reader.nextDouble())
+        JsonReader.Token.BOOLEAN -> CapabilityValue.Bool(reader.nextBoolean())
+        JsonReader.Token.STRING -> CapabilityValue.Str(reader.nextString())
+        JsonReader.Token.NULL -> reader.nextNull()
+        else -> { reader.skipValue(); null }
+    }
+
+    @ToJson
+    fun toJson(writer: JsonWriter, @Lenient value: CapabilityValue?) {
+        when (value) {
+            null -> writer.nullValue()
+            is CapabilityValue.Num -> writer.value(value.value)
+            is CapabilityValue.Bool -> writer.value(value.value)
+            is CapabilityValue.Str -> writer.value(value.value)
+        }
+    }
+}
+
 // ── Devices (GET /user/devices) ─────────────────────────────────────────────────
 
 data class DeviceListResponse(
@@ -92,7 +134,7 @@ data class CapabilityOption(
 )
 
 data class CapabilityState(
-    @Lenient val value: Double? = null,
+    @Lenient val value: CapabilityValue? = null,
 )
 
 // ── Device state (POST /device/state) ─────────────────────────────────────────
@@ -122,7 +164,7 @@ data class DeviceStateData(
 
 /** Matches by instance name; Govee sensors use "sensorHumidity"/"humidity" and "sensorTemperature"/"temperature". */
 fun List<GoveeCapability>.propertyValue(vararg instanceNames: String): Double? =
-    firstNotNullOfOrNull { cap -> cap.state?.value.takeIf { cap.instance in instanceNames } }
+    firstNotNullOfOrNull { cap -> cap.state?.value?.asDouble.takeIf { cap.instance in instanceNames } }
 
 // ── Control (POST /device/control) ────────────────────────────────────────────
 
