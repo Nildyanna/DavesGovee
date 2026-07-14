@@ -46,9 +46,14 @@ class LenientDoubleAdapter {
 
 data class DeviceListResponse(
     val code: Int,
+    // Govee's error-message field name isn't confirmed for this endpoint (the other two
+    // response types use "msg") — accept both so a real error message isn't silently dropped.
     val message: String? = null,
+    val msg: String? = null,
     val data: List<GoveeDevice> = emptyList(),
-)
+) {
+    val errorMessage: String? get() = message ?: msg
+}
 
 data class GoveeDevice(
     val device: String,

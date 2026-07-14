@@ -5,6 +5,7 @@ import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
+import retrofit2.HttpException
 
 private val NIGHT_START = LocalTime.of(21, 0)
 private val NIGHT_END = LocalTime.of(9, 0)
@@ -97,6 +98,25 @@ class GoveeRepository {
 
     private val api = NetworkModule.goveeApi
 
+    /**
+     * Retrofit throws HttpException for any non-2xx status *before* the body is deserialized —
+     * so a real HTTP 401/429/etc. never reaches the response models' own error fields. This
+     * unwraps HttpException into a message with the actual status and Govee's raw error body,
+     * instead of Retrofit's generic (and mostly useless) "HTTP 401 Unauthorized".
+     */
+    private suspend fun <T> unwrapHttpErrors(block: suspend () -> T): T =
+        try {
+            block()
+        } catch (e: HttpException) {
+            val body = e.response()?.errorBody()?.string()?.take(300)
+            val hint = when (e.code()) {
+                401 -> " — the API key was rejected. It may be invalid, expired, or temporarily suspended after heavy use."
+                429 -> " — rate limited. Wait a bit before trying again."
+                else -> ""
+            }
+            error("Govee HTTP ${e.code()}$hint${body?.let { ": $it" } ?: ""}")
+        }
+
     suspend fun checkConnection(): Boolean = withContext(Dispatchers.IO) {
         try {
             val response = NetworkModule.okHttp
@@ -110,20 +130,24 @@ class GoveeRepository {
     }
 
     suspend fun listDevices(apiKey: String): Result<List<GoveeDevice>> = runCatching {
-        val response = api.getDevices(apiKey)
-        if (response.code != 200) error("Govee API error (${response.code}): ${response.message}")
+        val response = unwrapHttpErrors { api.getDevices(apiKey) }
+        if (response.code != 200) {
+            error("Govee API error (${response.code}): ${response.errorMessage ?: "no message"}")
+        }
         response.data
     }
 
     suspend fun getVpd(apiKey: String, deviceId: String, model: String): Result<Double> =
         runCatching {
-            val response = api.getDeviceState(
-                apiKey = apiKey,
-                request = DeviceStateRequest(
-                    requestId = UUID.randomUUID().toString(),
-                    payload = DeviceStatePayload(sku = model, device = deviceId),
-                ),
-            )
+            val response = unwrapHttpErrors {
+                api.getDeviceState(
+                    apiKey = apiKey,
+                    request = DeviceStateRequest(
+                        requestId = UUID.randomUUID().toString(),
+                        payload = DeviceStatePayload(sku = model, device = deviceId),
+                    ),
+                )
+            }
             val caps = response.payload?.capabilities
                 ?: error("No state data (${response.code}): ${response.msg}")
             val temp = caps.propertyValue("sensorTemperature", "temperature")
@@ -152,21 +176,23 @@ class GoveeRepository {
             ?.let { resolveFanSpeedMapping(it.capabilities) }
         val value = resolvedMapping?.valueFor(speed)
             ?: WorkModeValue(workMode = 1, modeValue = speed.goveeValue)
-        val response = api.control(
-            apiKey = apiKey,
-            request = ControlRequest(
-                requestId = UUID.randomUUID().toString(),
-                payload = ControlPayload(
-                    sku = model,
-                    device = deviceId,
-                    capability = ControlCapability(
-                        type = WORK_MODE_TYPE,
-                        instance = WORK_MODE_INSTANCE,
-                        value = value,
+        val response = unwrapHttpErrors {
+            api.control(
+                apiKey = apiKey,
+                request = ControlRequest(
+                    requestId = UUID.randomUUID().toString(),
+                    payload = ControlPayload(
+                        sku = model,
+                        device = deviceId,
+                        capability = ControlCapability(
+                            type = WORK_MODE_TYPE,
+                            instance = WORK_MODE_INSTANCE,
+                            value = value,
+                        ),
                     ),
                 ),
-            ),
-        )
+            )
+        }
         if (response.code != 200) error("Control failed (${response.code}): ${response.msg}")
     }
 }
