@@ -19,6 +19,7 @@ class PreferencesRepository(private val context: Context) {
         private val KEY_DEVICE_MODEL = stringPreferencesKey("device_model")
         private val KEY_TARGET_VPD = doublePreferencesKey("target_vpd")
         private val KEY_VPD_BAND = doublePreferencesKey("vpd_band")
+        private val KEY_NIGHT_VPD = doublePreferencesKey("night_target_vpd")
         private val KEY_SENSOR_DEVICE_ID = stringPreferencesKey("sensor_device_id")
         private val KEY_SENSOR_MODEL = stringPreferencesKey("sensor_model")
     }
@@ -28,6 +29,8 @@ class PreferencesRepository(private val context: Context) {
     val deviceModel: Flow<String?> = context.dataStore.data.map { it[KEY_DEVICE_MODEL] }
     val targetVpd: Flow<Double> = context.dataStore.data.map { it[KEY_TARGET_VPD] ?: 0.8 }
     val vpdBand: Flow<Double> = context.dataStore.data.map { it[KEY_VPD_BAND] ?: 0.1 }
+    /** Night-cycle target (9pm–9am local, see isNightTime); defaults to the day target until customized. */
+    val nightVpd: Flow<Double> = context.dataStore.data.map { it[KEY_NIGHT_VPD] ?: it[KEY_TARGET_VPD] ?: 0.8 }
     val sensorDeviceId: Flow<String?> = context.dataStore.data.map { it[KEY_SENSOR_DEVICE_ID] }
     val sensorModel: Flow<String?> = context.dataStore.data.map { it[KEY_SENSOR_MODEL] }
 
@@ -44,10 +47,11 @@ class PreferencesRepository(private val context: Context) {
         backupSnapshot()
     }
 
-    suspend fun saveVpdSettings(targetVpd: Double, band: Double) {
+    suspend fun saveVpdSettings(targetVpd: Double, band: Double, nightVpd: Double) {
         context.dataStore.edit {
             it[KEY_TARGET_VPD] = targetVpd
             it[KEY_VPD_BAND] = band
+            it[KEY_NIGHT_VPD] = nightVpd
         }
         backupSnapshot()
     }
@@ -76,6 +80,7 @@ class PreferencesRepository(private val context: Context) {
                 sensorModel = sensorModel.first(),
                 targetVpd = targetVpd.first(),
                 vpdBand = vpdBand.first(),
+                nightVpd = nightVpd.first(),
             ),
         )
     }
@@ -93,6 +98,7 @@ class PreferencesRepository(private val context: Context) {
             data.sensorModel?.let { prefs[KEY_SENSOR_MODEL] = it }
             prefs[KEY_TARGET_VPD] = data.targetVpd
             prefs[KEY_VPD_BAND] = data.vpdBand
+            prefs[KEY_NIGHT_VPD] = data.nightVpd
         }
     }
 }

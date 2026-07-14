@@ -19,6 +19,8 @@ data class BackupData(
     val sensorModel: String?,
     val targetVpd: Double,
     val vpdBand: Double,
+    /** Default keeps older backup files (written before the night cycle existed) parseable. */
+    val nightVpd: Double = targetVpd,
 )
 
 /**

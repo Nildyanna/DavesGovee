@@ -47,6 +47,8 @@ data class UiState(
     val updateProgress: Int = 0,
     val targetVpd: Double = 0.8,
     val vpdBand: Double = 0.1,
+    /** Applies 9pm–9am local instead of [targetVpd]; shares [vpdBand]. See activeTargetVpd. */
+    val nightVpd: Double = 0.8,
 )
 
 class MainViewModel(
@@ -81,6 +83,9 @@ class MainViewModel(
             prefs.vpdBand.collect { b -> _state.update { it.copy(vpdBand = b) } }
         }
         viewModelScope.launch {
+            prefs.nightVpd.collect { v -> _state.update { it.copy(nightVpd = v) } }
+        }
+        viewModelScope.launch {
             prefs.deviceId.collect { id -> _state.update { it.copy(selectedDeviceId = id) } }
         }
         viewModelScope.launch {
@@ -104,8 +109,8 @@ class MainViewModel(
         checkForUpdate()
     }
 
-    fun saveVpdSettings(targetVpd: Double, band: Double) {
-        viewModelScope.launch { prefs.saveVpdSettings(targetVpd, band) }
+    fun saveVpdSettings(targetVpd: Double, band: Double, nightVpd: Double) {
+        viewModelScope.launch { prefs.saveVpdSettings(targetVpd, band, nightVpd) }
     }
 
     fun checkConnection() {

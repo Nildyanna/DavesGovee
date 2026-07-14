@@ -53,7 +53,7 @@ fun MainScreen(
     onSelectSensor: (GoveeDevice) -> Unit,
     onSaveManualDevice: (deviceId: String, model: String) -> Unit,
     onSaveManualSensor: (deviceId: String, model: String) -> Unit,
-    onSaveVpdSettings: (targetVpd: Double, band: Double) -> Unit,
+    onSaveVpdSettings: (targetVpd: Double, band: Double, nightVpd: Double) -> Unit,
     onToggleAutomation: (Boolean) -> Unit,
     onDispatch: () -> Unit,
     onLogout: () -> Unit,
@@ -62,6 +62,7 @@ fun MainScreen(
 ) {
     var targetVpdText by remember(state.targetVpd) { mutableStateOf(String.format(Locale.US, "%.2f", state.targetVpd)) }
     var vpdBandText by remember(state.vpdBand) { mutableStateOf(String.format(Locale.US, "%.2f", state.vpdBand)) }
+    var nightVpdText by remember(state.nightVpd) { mutableStateOf(String.format(Locale.US, "%.2f", state.nightVpd)) }
     var vpdSaveConfirmed by remember { mutableStateOf(false) }
 
     Column(
@@ -164,7 +165,8 @@ fun MainScreen(
         Spacer(Modifier.height(4.dp))
         Text(
             "Target vapor pressure deficit in kPa. Fan runs harder when VPD is below target. " +
-            "Dead-band prevents constant cycling — fan stays Low within ±band of target.",
+            "Dead-band prevents constant cycling — fan stays Low within ±band of target. " +
+            "Night VPD applies instead of the day target from 9pm–9am local time, sharing the same dead-band.",
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(8.dp))
@@ -172,32 +174,43 @@ fun MainScreen(
             OutlinedTextField(
                 value = targetVpdText,
                 onValueChange = { targetVpdText = it; vpdSaveConfirmed = false },
-                label = { Text("Target VPD (kPa)") },
+                label = { Text("Day VPD (kPa)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.weight(1f),
             )
             OutlinedTextField(
-                value = vpdBandText,
-                onValueChange = { vpdBandText = it; vpdSaveConfirmed = false },
-                label = { Text("Dead-band (kPa)") },
+                value = nightVpdText,
+                onValueChange = { nightVpdText = it; vpdSaveConfirmed = false },
+                label = { Text("Night VPD (kPa)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.weight(1f),
             )
         }
         Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = vpdBandText,
+            onValueChange = { vpdBandText = it; vpdSaveConfirmed = false },
+            label = { Text("Dead-band (kPa)") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
         Button(
             onClick = {
                 val t = targetVpdText.toDoubleLenient()
                 val b = vpdBandText.toDoubleLenient()
-                if (t != null && b != null && t > 0 && b >= 0) {
-                    onSaveVpdSettings(t, b)
+                val n = nightVpdText.toDoubleLenient()
+                if (t != null && b != null && n != null && t > 0 && b >= 0 && n > 0) {
+                    onSaveVpdSettings(t, b, n)
                     vpdSaveConfirmed = true
                 }
             },
             enabled = targetVpdText.toDoubleLenient()?.let { it > 0 } == true &&
-                      vpdBandText.toDoubleLenient()?.let { it >= 0 } == true,
+                      vpdBandText.toDoubleLenient()?.let { it >= 0 } == true &&
+                      nightVpdText.toDoubleLenient()?.let { it > 0 } == true,
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Save VPD Settings") }
         if (vpdSaveConfirmed) {

@@ -1,9 +1,21 @@
 package com.dehumidifier.data
 
+import java.time.LocalTime
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
+
+private val NIGHT_START = LocalTime.of(21, 0)
+private val NIGHT_END = LocalTime.of(9, 0)
+
+/** True between 9pm and 9am local time (wraps past midnight). */
+fun isNightTime(now: LocalTime = LocalTime.now()): Boolean =
+    now >= NIGHT_START || now < NIGHT_END
+
+/** Picks the day or night VPD target depending on the current local time. */
+fun activeTargetVpd(dayTarget: Double, nightTarget: Double, now: LocalTime = LocalTime.now()): Double =
+    if (isNightTime(now)) nightTarget else dayTarget
 
 enum class FanSpeed(val goveeValue: Int) {
     LOW(1),
