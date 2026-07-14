@@ -16,6 +16,7 @@ import com.dehumidifier.data.GoveeRepository
 import com.dehumidifier.data.PreferencesRepository
 import com.dehumidifier.data.ReleaseInfo
 import com.dehumidifier.data.UpdateChecker
+import com.dehumidifier.data.resolveFanSpeedMapping
 import com.dehumidifier.worker.AutomationWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -154,6 +155,9 @@ class MainViewModel(
     fun selectDevice(device: GoveeDevice) {
         viewModelScope.launch {
             prefs.saveDevice(device.device, device.model)
+            // Resolve gear values from the capabilities already fetched for the device list, so
+            // "Run Now" doesn't need to re-fetch them (an extra Govee round trip) on every call.
+            resolveFanSpeedMapping(device.capabilities)?.let { prefs.saveFanSpeedMapping(it) }
             _state.update { it.copy(selectedDeviceId = device.device, selectedDeviceModel = device.model) }
         }
     }
@@ -209,7 +213,7 @@ class MainViewModel(
             wm.enqueue(request)
             // Bounded wait — a retrying job never reaches a "finished" WorkInfo state, so
             // without a timeout a stuck run leaves the spinner running with no feedback.
-            val finished = withTimeoutOrNull(30_000) {
+            val finished = withTimeoutOrNull(45_000) {
                 wm.getWorkInfoByIdFlow(request.id).first { it != null && it.state.isFinished }
             }
             val status = when {

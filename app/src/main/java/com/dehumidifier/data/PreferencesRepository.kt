@@ -3,6 +3,7 @@ package com.dehumidifier.data
 import android.content.Context
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +23,10 @@ class PreferencesRepository(private val context: Context) {
         private val KEY_NIGHT_VPD = doublePreferencesKey("night_target_vpd")
         private val KEY_SENSOR_DEVICE_ID = stringPreferencesKey("sensor_device_id")
         private val KEY_SENSOR_MODEL = stringPreferencesKey("sensor_model")
+        private val KEY_FSM_WORK_MODE = intPreferencesKey("fsm_work_mode")
+        private val KEY_FSM_LOW = intPreferencesKey("fsm_low")
+        private val KEY_FSM_MEDIUM = intPreferencesKey("fsm_medium")
+        private val KEY_FSM_HIGH = intPreferencesKey("fsm_high")
     }
 
     val apiKey: Flow<String?> = context.dataStore.data.map { it[KEY_API_KEY] }
@@ -33,6 +38,20 @@ class PreferencesRepository(private val context: Context) {
     val nightVpd: Flow<Double> = context.dataStore.data.map { it[KEY_NIGHT_VPD] ?: it[KEY_TARGET_VPD] ?: 0.8 }
     val sensorDeviceId: Flow<String?> = context.dataStore.data.map { it[KEY_SENSOR_DEVICE_ID] }
     val sensorModel: Flow<String?> = context.dataStore.data.map { it[KEY_SENSOR_MODEL] }
+    /**
+     * Cached work_mode control values for the selected dehumidifier (see
+     * GoveeRepository.resolveFanSpeedMapping), avoiding an extra Govee API round trip on every
+     * control call. Null when unset (e.g. manual entry) — caller falls back to a live lookup.
+     */
+    val fanSpeedMapping: Flow<FanSpeedMapping?> = context.dataStore.data.map { prefs ->
+        val workMode = prefs[KEY_FSM_WORK_MODE] ?: return@map null
+        FanSpeedMapping(
+            workMode = workMode,
+            low = prefs[KEY_FSM_LOW] ?: FanSpeed.LOW.goveeValue,
+            medium = prefs[KEY_FSM_MEDIUM] ?: FanSpeed.MEDIUM.goveeValue,
+            high = prefs[KEY_FSM_HIGH] ?: FanSpeed.HIGH.goveeValue,
+        )
+    }
 
     suspend fun saveApiKey(key: String) {
         context.dataStore.edit { it[KEY_API_KEY] = key }
@@ -43,8 +62,24 @@ class PreferencesRepository(private val context: Context) {
         context.dataStore.edit {
             it[KEY_DEVICE_ID] = id
             it[KEY_DEVICE_MODEL] = model
+            // Clear any cached mapping from a previously selected device — it belongs to a
+            // different SKU/unit and would resolve to the wrong gear values if left in place.
+            it.remove(KEY_FSM_WORK_MODE)
+            it.remove(KEY_FSM_LOW)
+            it.remove(KEY_FSM_MEDIUM)
+            it.remove(KEY_FSM_HIGH)
         }
         backupSnapshot()
+    }
+
+    /** Caches the resolved work_mode values for the currently selected dehumidifier. */
+    suspend fun saveFanSpeedMapping(mapping: FanSpeedMapping) {
+        context.dataStore.edit {
+            it[KEY_FSM_WORK_MODE] = mapping.workMode
+            it[KEY_FSM_LOW] = mapping.low
+            it[KEY_FSM_MEDIUM] = mapping.medium
+            it[KEY_FSM_HIGH] = mapping.high
+        }
     }
 
     suspend fun saveVpdSettings(targetVpd: Double, band: Double, nightVpd: Double) {

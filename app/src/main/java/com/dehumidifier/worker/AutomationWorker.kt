@@ -25,13 +25,14 @@ class AutomationWorker(
         val targetVpd = prefs.targetVpd.first()
         val vpdBand = prefs.vpdBand.first()
         val nightVpd = prefs.nightVpd.first()
+        val fanSpeedMapping = prefs.fanSpeedMapping.first()
 
         return try {
             val govee = GoveeRepository()
             val currentVpd = govee.getVpd(apiKey, sensorId, sensorModel).getOrThrow()
             val speed = vpdToFanSpeed(currentVpd, activeTargetVpd(targetVpd, nightVpd), vpdBand)
 
-            govee.setFanSpeed(apiKey, deviceId, model, speed).getOrThrow()
+            govee.setFanSpeed(apiKey, deviceId, model, speed, fanSpeedMapping).getOrThrow()
             Result.success()
         } catch (e: Exception) {
             // Retry transient failures a couple of times, then give up rather than retrying

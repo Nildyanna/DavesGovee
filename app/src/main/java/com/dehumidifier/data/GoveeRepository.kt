@@ -55,6 +55,44 @@ enum class ConnectionStatus { UNKNOWN, CHECKING, ONLINE, OFFLINE }
 private const val WORK_MODE_TYPE = "devices.capabilities.work_mode"
 private const val WORK_MODE_INSTANCE = "workMode"
 
+/** Resolved work_mode control values for a specific device's LOW/MEDIUM/HIGH fan speeds. */
+data class FanSpeedMapping(
+    val workMode: Int,
+    val low: Int,
+    val medium: Int,
+    val high: Int,
+) {
+    fun valueFor(speed: FanSpeed): WorkModeValue = WorkModeValue(
+        workMode = workMode,
+        modeValue = when (speed) {
+            FanSpeed.LOW -> low
+            FanSpeed.MEDIUM -> medium
+            FanSpeed.HIGH -> high
+        },
+    )
+}
+
+/**
+ * Extracts the work_mode control values from a device's own declared capabilities (fetched
+ * once, e.g. when the device is selected from the list) so later control calls don't need to
+ * re-fetch the device list just to look this up. Returns null if the device doesn't declare a
+ * work_mode capability, in which case callers should fall back to a live lookup or a default.
+ */
+fun resolveFanSpeedMapping(capabilities: List<GoveeCapability>): FanSpeedMapping? {
+    val fields = capabilities
+        .firstOrNull { it.type == WORK_MODE_TYPE || it.instance == WORK_MODE_INSTANCE }
+        ?.parameters?.fields ?: return null
+    val modeId = fields.firstOrNull { it.fieldName == "workMode" }
+        ?.options?.firstOrNull()?.value?.toInt() ?: return null
+    val gearOptions = fields.firstOrNull { it.fieldName == "modeValue" }?.options
+    return FanSpeedMapping(
+        workMode = modeId,
+        low = gearOptions?.getOrNull(FanSpeed.LOW.ordinal)?.value?.toInt() ?: FanSpeed.LOW.goveeValue,
+        medium = gearOptions?.getOrNull(FanSpeed.MEDIUM.ordinal)?.value?.toInt() ?: FanSpeed.MEDIUM.goveeValue,
+        high = gearOptions?.getOrNull(FanSpeed.HIGH.ordinal)?.value?.toInt() ?: FanSpeed.HIGH.goveeValue,
+    )
+}
+
 class GoveeRepository {
 
     private val api = NetworkModule.goveeApi
@@ -96,33 +134,24 @@ class GoveeRepository {
         }
 
     /**
-     * Builds the work_mode control value for [speed]. Prefers the device's own declared
-     * workMode/gear options (from its `devices.capabilities.work_mode` capability) so the
-     * correct mode id and gear numbering is used regardless of SKU; falls back to the
-     * documented default (workMode=1 "Gear Mode", modeValue=1/2/3) if the device's
-     * capabilities aren't available or don't declare a work_mode capability.
+     * @param mapping the device's cached work_mode values (see [resolveFanSpeedMapping]),
+     *   normally resolved once when the device was selected and passed in to avoid an extra
+     *   Govee round trip on every control call. Only re-fetched here (one more API call) if
+     *   no cached mapping is available — e.g. a manually-entered device whose capabilities
+     *   were never fetched.
      */
-    private fun resolveWorkModeValue(device: GoveeDevice?, speed: FanSpeed): WorkModeValue {
-        val fields = device?.capabilities
-            ?.firstOrNull { it.type == WORK_MODE_TYPE || it.instance == WORK_MODE_INSTANCE }
-            ?.parameters?.fields
-        val modeId = fields?.firstOrNull { it.fieldName == "workMode" }
-            ?.options?.firstOrNull()?.value?.toInt() ?: 1
-        val gearOptions = fields?.firstOrNull { it.fieldName == "modeValue" }?.options
-        val gearValue = gearOptions
-            ?.getOrNull(speed.ordinal)?.value?.toInt()
-            ?: speed.goveeValue
-        return WorkModeValue(workMode = modeId, modeValue = gearValue)
-    }
-
     suspend fun setFanSpeed(
         apiKey: String,
         deviceId: String,
         model: String,
         speed: FanSpeed,
+        mapping: FanSpeedMapping?,
     ): Result<Unit> = runCatching {
-        val device = listDevices(apiKey).getOrNull()
+        val resolvedMapping = mapping ?: listDevices(apiKey).getOrNull()
             ?.firstOrNull { it.device == deviceId && it.sku == model }
+            ?.let { resolveFanSpeedMapping(it.capabilities) }
+        val value = resolvedMapping?.valueFor(speed)
+            ?: WorkModeValue(workMode = 1, modeValue = speed.goveeValue)
         val response = api.control(
             apiKey = apiKey,
             request = ControlRequest(
@@ -133,7 +162,7 @@ class GoveeRepository {
                     capability = ControlCapability(
                         type = WORK_MODE_TYPE,
                         instance = WORK_MODE_INSTANCE,
-                        value = resolveWorkModeValue(device, speed),
+                        value = value,
                     ),
                 ),
             ),
