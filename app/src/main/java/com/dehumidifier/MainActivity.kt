@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
@@ -23,7 +24,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                // targetSdk 35 forces edge-to-edge; without this, system bars (e.g. the
+                // 3-button nav bar) draw on top of content instead of reserving space.
+                Surface(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
                     val state by vm.state.collectAsState()
                     val apiKey by vm.savedApiKey.collectAsState()
 
