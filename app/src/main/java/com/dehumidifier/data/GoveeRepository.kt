@@ -179,7 +179,12 @@ class GoveeRepository {
             }
             val caps = response.payload?.capabilities
                 ?: error("No state data (${response.code}): ${response.msg}")
-            val temp = caps.propertyValue("sensorTemperature", "temperature")
+            // Confirmed empirically: this sensor's "sensorTemperature"/"temperature" capability
+            // reports Fahrenheit, not Celsius — feeding that raw value straight into the
+            // (Celsius-only) VPD formula produced wildly inflated results (e.g. ~26 kPa instead
+            // of ~1.2), since VPD is exponential in temperature.
+            val rawTemp = caps.propertyValue("sensorTemperature", "temperature")
+            val temp = rawTemp?.let { (it - 32) * 5.0 / 9.0 }
             val rh = caps.propertyValue("sensorHumidity", "humidity")
             val online = caps.firstOrNull { it.instance.equals("online", ignoreCase = true) }
                 ?.state?.value.asBoolean

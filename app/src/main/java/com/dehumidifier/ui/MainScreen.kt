@@ -91,7 +91,10 @@ fun MainScreen(
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Device Status", style = MaterialTheme.typography.titleSmall)
                     state.lastTemp?.let {
-                        Text("Temp: ${String.format(Locale.US, "%.1f", it)}°C", style = MaterialTheme.typography.bodySmall)
+                        // Stored internally as Celsius (the VPD formula needs it), converted
+                        // back to Fahrenheit here since that's this sensor's native unit.
+                        val f = it * 9.0 / 5.0 + 32
+                        Text("Temp: ${String.format(Locale.US, "%.1f", f)}°F", style = MaterialTheme.typography.bodySmall)
                     }
                     state.lastHumidity?.let {
                         Text("Humidity: ${String.format(Locale.US, "%.0f", it)}%", style = MaterialTheme.typography.bodySmall)
