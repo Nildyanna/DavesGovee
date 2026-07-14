@@ -111,6 +111,12 @@ fun MainScreen(
                     Spacer(Modifier.height(8.dp))
                 }
             }
+            Text(
+                state.selectedDeviceId?.let { "Selected: ${state.selectedDeviceModel ?: it}" }
+                    ?: "No dehumidifier selected yet — tap one above.",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (state.selectedDeviceId != null) Color.Gray else MaterialTheme.colorScheme.error,
+            )
         } else {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (state.isLoading) {
@@ -148,6 +154,12 @@ fun MainScreen(
                     Spacer(Modifier.height(8.dp))
                 }
             }
+            Text(
+                state.selectedSensorId?.let { "Selected: ${state.selectedSensorModel ?: it}" }
+                    ?: "No hygrometer selected yet — tap one above.",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (state.selectedSensorId != null) Color.Gray else MaterialTheme.colorScheme.error,
+            )
         } else {
             ManualDeviceEntry(
                 label = "Hygrometer",
@@ -244,6 +256,13 @@ fun MainScreen(
                 enabled = state.selectedDeviceId != null && state.selectedSensorId != null,
             )
         }
+        if (state.selectedDeviceId == null || state.selectedSensorId == null) {
+            Text(
+                "Select both a dehumidifier and a hygrometer above to enable this.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
 
         Spacer(Modifier.height(16.dp))
         HorizontalDivider()
@@ -263,6 +282,13 @@ fun MainScreen(
                 )
             }
             Text(if (state.isDispatching) "Running…" else "Run Now")
+        }
+        if (state.selectedDeviceId == null) {
+            Text(
+                "Select a dehumidifier above to enable this.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
         }
 
         state.lastStatus?.let {
