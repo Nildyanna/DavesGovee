@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.TimeUnit
 
 data class UiState(
@@ -206,15 +207,17 @@ class MainViewModel(
             val request = OneTimeWorkRequestBuilder<AutomationWorker>().build()
             val wm = WorkManager.getInstance(context)
             wm.enqueue(request)
-            wm.getWorkInfoByIdFlow(request.id).collect { info ->
-                if (info != null && info.state.isFinished) {
-                    val status = if (info.state == WorkInfo.State.SUCCEEDED)
-                        "Done — fan speed updated."
-                    else
-                        "Run failed. Check API key and device selection."
-                    _state.update { it.copy(isDispatching = false, lastStatus = status) }
-                }
+            // Bounded wait — a retrying job never reaches a "finished" WorkInfo state, so
+            // without a timeout a stuck run leaves the spinner running with no feedback.
+            val finished = withTimeoutOrNull(30_000) {
+                wm.getWorkInfoByIdFlow(request.id).first { it != null && it.state.isFinished }
             }
+            val status = when {
+                finished == null -> "Timed out. Check your connection and try again."
+                finished.state == WorkInfo.State.SUCCEEDED -> "Done — fan speed updated."
+                else -> "Run failed. Check API key and device selection."
+            }
+            _state.update { it.copy(isDispatching = false, lastStatus = status) }
         }
     }
 

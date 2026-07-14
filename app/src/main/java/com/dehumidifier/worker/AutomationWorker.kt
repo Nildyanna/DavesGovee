@@ -34,7 +34,10 @@ class AutomationWorker(
             govee.setFanSpeed(apiKey, deviceId, model, speed).getOrThrow()
             Result.success()
         } catch (e: Exception) {
-            Result.retry()
+            // Retry transient failures a couple of times, then give up rather than retrying
+            // forever — an unbounded retry keeps a manually-triggered "Run Now" spinning with
+            // no feedback, since a retrying job never reaches a "finished" WorkInfo state.
+            if (runAttemptCount < 2) Result.retry() else Result.failure()
         }
     }
 }
